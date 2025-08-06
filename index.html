@@ -1,0 +1,1930 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Project Tracker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+    <style>
+        /* CSS Variables for consistent theming */
+        :root {
+            --accent-color: #fce7f3; /* Light Pink */
+            --accent-color-dark: #f9a8d4;
+            --text-color: #1f2937;
+            --text-color-light: #6b7280;
+            --bg-color: #f9fafb;
+            --border-color: #e5e7eb;
+            --container-bg: #ffffff;
+            --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --completed-green: #dcfce7;
+            --valid-green: #10b981;
+            --obsolete-red: #fee2e2;
+            --obsolete-red-dark: #f87171;
+            --button-text-color: #111827;
+        }
+
+        body.dark-theme {
+            --text-color: #d1d5db;
+            --text-color-light: #9ca3af;
+            --bg-color: #111827;
+            --border-color: #374151;
+            --container-bg: #1f2937;
+            --shadow: 0 4px 6px -1px rgb(255 255 255 / 0.05), 0 2px 4px -2px rgb(255 255 255 / 0.05);
+            --completed-green: #14532d;
+            --obsolete-red: #7f1d1d;
+            --button-text-color: #111827; /* Keep button text dark for contrast on light pink */
+        }
+
+        /* General Body Styling */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 2rem;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        /* Hide elements helper class */
+        .hidden { display: none !important; }
+        
+        /* Constellation Background */
+        #constellation-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            transition: opacity 0.5s;
+            opacity: 0;
+        }
+        body.constellation-active #constellation-bg {
+            opacity: 1;
+        }
+
+
+        /* Authentication Screen Styling */
+        #auth-screen { max-width: 400px; margin: 100px auto; padding: 2rem; background-color: var(--container-bg); border-radius: 12px; box-shadow: var(--shadow); text-align: center; }
+        #auth-screen h1 { margin-top: 0; color: var(--text-color); }
+        .auth-button { display: block; width: 100%; padding: 12px; margin: 10px 0; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        #password-prompt input { width: calc(100% - 24px); padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 10px; background-color: var(--bg-color); color: var(--text-color); }
+        #password-error { color: var(--obsolete-red-dark); margin-bottom: 10px; font-size: 0.9rem; }
+
+        /* Main Application Container */
+        #app-container { max-width: 1400px; margin: 0 auto; }
+        #app-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; gap: 1rem; }
+        #main-title { text-align: center; font-size: 2.25rem; font-weight: 800; color: var(--text-color); flex-grow: 1; letter-spacing: -0.025em; }
+        .header-controls { display: flex; align-items: center; gap: 1rem; }
+
+
+        /* Theme Toggle */
+        .theme-switch-wrapper { display: flex; align-items: center; }
+        .theme-switch { display: inline-block; height: 24px; position: relative; width: 48px; }
+        .theme-switch input { display:none; }
+        .slider { background-color: #ccc; bottom: 0; cursor: pointer; left: 0; position: absolute; right: 0; top: 0; transition: .4s; border-radius: 24px; }
+        .slider:before { background-color: #fff; bottom: 4px; content: ""; height: 16px; left: 4px; position: absolute; transition: .4s; width: 16px; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--accent-color-dark); }
+        input:checked + .slider:before { transform: translateX(24px); }
+
+        /* Overall Progress Bar */
+        #overall-progress-bar-container {
+            background-color: var(--border-color);
+            border-radius: 9999px;
+            height: 12px;
+            margin-bottom: 2rem;
+            overflow: hidden;
+            /* --- NEW: Added for tooltip functionality --- */
+            position: relative;
+            cursor: pointer;
+        }
+        #overall-progress-bar { height: 100%; width: 0%; background-image: linear-gradient(to right, var(--accent-color), var(--accent-color-dark)); border-radius: 9999px; transition: width 0.5s ease-in-out; }
+
+        /* Collapsible Section Styling */
+        .collapsible-section { background-color: var(--container-bg); border: 1px solid var(--border-color); border-radius: 12px; margin-bottom: 1.5rem; box-shadow: var(--shadow); overflow: hidden; transition: all 0.3s; }
+        .collapsible-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; cursor: pointer; user-select: none; }
+        .collapsible-header h2 { margin: 0; font-size: 1.25rem; font-weight: 600; }
+        .toggle-icon { transition: transform 0.3s; }
+        .collapsible-content { padding: 0 1.5rem 1.5rem 1.5rem; border-top: 1px solid var(--border-color); display: grid; gap: 1.5rem; }
+        
+        /* General UI Elements */
+        .editable { padding: 10px; border: 1px solid transparent; border-radius: 8px; min-height: 80px; background-color: transparent; transition: border-color 0.2s, background-color 0.2s; overflow-y: auto; }
+        .admin-mode .editable { cursor: text; }
+        .editable[contenteditable="true"] { border-color: var(--border-color); background-color: var(--bg-color); }
+        .editable[contenteditable="true"]:focus { outline: none; border-color: var(--accent-color-dark); box-shadow: 0 0 0 2px var(--accent-color); }
+        
+        input[type="text"], textarea { width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; box-sizing: border-box; font-family: 'Inter', sans-serif; background-color: var(--bg-color); color: var(--text-color); }
+        input:disabled, textarea:disabled { background-color: var(--border-color); cursor: not-allowed; color: var(--text-color-light); }
+        .primary-button, .auth-button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 8px;
+            background-image: linear-gradient(to right, var(--accent-color), var(--accent-color-dark));
+            color: var(--button-text-color);
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+        }
+        .primary-button:hover, .auth-button:hover {
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            transform: translateY(-2px);
+        }
+        .primary-button:disabled { background-color: var(--border-color); cursor: not-allowed; }
+        .danger-button { background-image: linear-gradient(to right, #fee2e2, #fca5a5); color: #991b1b; }
+        .danger-button:hover { background-image: linear-gradient(to right, #fecaca, #f87171); }
+
+        /* About Section Specifics */
+        #title-image-container { text-align: center; margin-bottom: 1.5rem; overflow: hidden; border-radius: 12px; }
+        #title-image-preview { 
+            display: block; /* MODIFIED: Ensure image is a block element for centering */
+            margin-left: auto; /* MODIFIED: Center the block horizontally */
+            margin-right: auto; /* MODIFIED: Center the block horizontally */
+            max-width: 100%; 
+            max-height: 300px; 
+            border-radius: 12px; 
+            object-fit: cover; 
+            background-color: var(--border-color); 
+            margin-bottom: 0.5rem; 
+            box-shadow: var(--shadow);
+            animation: kenburns 20s ease-out both infinite;
+        }
+        .person-details { display: flex; align-items: center; gap: 1rem; }
+        .person-photo-preview { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; background-color: var(--border-color); transition: transform 0.3s; }
+        .person-photo-preview:hover { transform: scale(1.1); }
+        .person-photo-upload { font-size: 0.9rem; }
+        .timeline-item { display: flex; flex-direction: column; gap: 0.5rem; }
+        .timeline-item h4 { margin: 0; font-size: 1rem; font-weight: 600; }
+        .custom-date-input.timeline-date { border: 2px solid; }
+        #deadline-tentative { background-color: #fbcfe8; border-color: #f9a8d4; }
+        #deadline-actual { background-color: #fce7f3; border-color: #fbcfe8; }
+        body.dark-theme #deadline-tentative, body.dark-theme #deadline-actual { color: var(--button-text-color); font-weight: bold; }
+        .admin-mode .custom-date-input.timeline-date { cursor: pointer; }
+        .visitor-mode .custom-date-input.timeline-date { cursor: not-allowed; }
+        
+        .visitor-mode #title-image-upload,
+        .visitor-mode .person-photo-upload,
+        .visitor-mode #snapshot-container {
+            display: none;
+        }
+
+
+        /* Project Tracker Section */
+        #project-tracker-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+        .tracker-column { background-color: var(--bg-color); padding: 1rem; border-radius: 8px; border: 1px solid var(--border-color); min-height: 200px; transition: background-color 0.3s; }
+        .tracker-column-header { display: flex; justify-content: space-between; align-items: center; padding: 0 0.5rem 1rem 0.5rem; border-bottom: 1px solid var(--border-color); margin-bottom: 1rem; cursor: pointer; }
+        .tracker-column-header h3 { margin: 0; font-weight: 600; }
+        .tracker-column-content { transition: all 0.3s ease-in-out; }
+        .search-bar { width: 100%; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 1rem; }
+
+        /* Stage Card Styling */
+        .stage-card { position: relative; overflow: hidden; background-color: var(--container-bg); border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 1rem; box-shadow: var(--shadow); transition: all 0.3s; perspective: 1000px; }
+        .stage-card-inner { background-color: var(--container-bg); z-index: 2; position: relative; transition: transform 0.3s ease; }
+        .stage-card.stage-completed-normal .stage-card-inner { background-color: var(--completed-green); }
+        .stage-card.stage-completed-obsolete .stage-card-inner { background-color: var(--obsolete-red); }
+
+        .admin-mode .stage-card { cursor: grab; }
+        .admin-mode .stage-card:active { cursor: grabbing; }
+        .dragging { opacity: 0.5; background: var(--accent-color); }
+        .drag-over { border-top: 2px solid var(--accent-color-dark); }
+        .stage-header { display: flex; align-items: center; padding: 0.75rem 1rem; cursor: pointer; }
+        .stage-title { flex-grow: 1; font-weight: 400; padding: 5px; border: 1px solid transparent; }
+        .delete-stage-icon { font-size: 1.5rem; font-weight: bold; color: var(--text-color-light); margin-left: 1rem; cursor: pointer; padding: 0 8px; border-radius: 4px; z-index: 3; }
+        .delete-stage-icon:hover { background-color: var(--obsolete-red); color: var(--obsolete-red-dark); }
+        .stage-content { padding: 1rem; border-top: 1px solid var(--border-color); display: grid; gap: 1rem; }
+        .stage-content h4 { margin: 0 0 0.5rem 0; font-weight: 600; }
+        .admin-mode .stage-content h4 { cursor: text; }
+        .stage-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; }
+        .stage-checkbox-label { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; }
+        .stage-checkbox-label.checked { font-weight: bold; }
+        
+        .stage-read-only .editable,
+        .stage-read-only .stage-detail,
+        .stage-read-only h4 {
+            cursor: default !important;
+            background-color: var(--border-color) !important;
+            color: var(--text-color-light) !important;
+        }
+        .stage-read-only .attachment-input {
+            display: none;
+        }
+        
+        /* Swipe Gestures */
+        .swipe-actions { position: absolute; top: 0; bottom: 0; z-index: 1; display: flex; align-items: center; }
+        .swipe-actions-left { left: 0; }
+        .swipe-actions-right { right: 0; }
+        .swipe-btn { height: 100%; border: none; color: white; cursor: pointer; padding: 0 20px; font-size: 1.2rem; display:flex; align-items:center; justify-content:center; }
+        .swipe-btn .lucide { pointer-events: none; } /* Make icon non-interactive */
+        .swipe-delete { background-color: var(--obsolete-red-dark); }
+        .swipe-complete { background-color: var(--valid-green); }
+        .swipe-obsolete { background-color: #f59e0b; } /* Amber color */
+
+
+        /* Rich Text Editor Toolbar */
+        .editor-toolbar { background-color: var(--bg-color); border: 1px solid var(--border-color); border-bottom: none; border-top-left-radius: 8px; border-top-right-radius: 8px; padding: 5px; display: flex; gap: 8px; }
+        .editor-toolbar button { background: none; border: 1px solid transparent; border-radius: 4px; padding: 4px 6px; cursor: pointer; font-size: 1rem; font-weight: bold; color: var(--text-color); }
+        .editor-toolbar button:hover { background-color: var(--border-color); }
+        .editor-toolbar button.active { background-color: var(--accent-color); }
+        .editor-toolbar i { font-style: italic; }
+        .editor-toolbar u { text-decoration: underline; }
+
+        /* Attachment Section */
+        .attachment-section { margin-top: 0.5rem; }
+        .attachment-list { list-style: none; padding: 0; margin: 0.5rem 0 0 0; }
+        .attachment-list li { display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; padding: 4px; border-radius: 4px; }
+        .attachment-list li:nth-child(odd) { background-color: var(--bg-color); }
+        .remove-attachment-btn { font-size: 1.2rem; color: var(--obsolete-red-dark); cursor: pointer; border: none; background: none; }
+        
+        /* Visitor Comments Section */
+        #visitor-comments-section .collapsible-content { display: block; }
+        #comments-container { max-height: 400px; overflow-y: auto; padding: 1rem; border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 1rem; }
+        .comment { background-color: var(--bg-color); padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 0.75rem; position: relative;}
+        .comment-content p { margin: 0 0 0.5rem 0; white-space: pre-wrap; word-wrap: break-word; }
+        .comment-meta { font-size: 0.8rem; color: var(--text-color-light); }
+        .comment-meta strong { color: var(--text-color); }
+        .comment-controls { position: absolute; top: 5px; right: 5px; display: flex; gap: 5px; opacity: 0; transition: opacity 0.2s; }
+        .comment:hover .comment-controls { opacity: 1; }
+        .comment-controls button { background: none; border: none; cursor: pointer; font-size: 1rem; color: var(--text-color-light); }
+        .comment-controls button:hover { color: var(--text-color); }
+        #comment-input-area { position: relative; transition: transform 0.8s ease-in, opacity 0.8s ease-in; }
+        #comment-input-wrapper { display: flex; gap: 10px; margin-bottom: 10px; }
+        #visitor-name-input { flex-basis: 30%; }
+        #comment-input { width: 100%; min-height: 80px; padding: 10px 40px 10px 10px; resize: vertical; }
+        .comment-actions { position: absolute; right: 10px; top: 10px; display: flex; gap: 5px; }
+        .comment-actions button { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-color-light); }
+        #emoji-panel { position: absolute; bottom: 100%; right: 0; background: var(--container-bg); border: 1px solid var(--border-color); border-radius: 8px; box-shadow: var(--shadow); padding: 10px; display: grid; grid-template-columns: repeat(8, 1fr); gap: 5px; max-height: 200px; overflow-y: auto; z-index: 100; }
+        #emoji-panel span { cursor: pointer; font-size: 1.2rem; text-align: center; }
+
+        /* Progress Counter */
+        #progress-counter { text-align: center; margin-top: 2rem; font-size: 1.1rem; font-weight: 500; }
+
+        /* Custom Date Picker */
+        .date-input-wrapper { position: relative; }
+        .datepicker { position: absolute; z-index: 100; background: var(--container-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; box-shadow: var(--shadow); width: 280px; }
+        .datepicker-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .datepicker-header button { background: none; border: none; cursor: pointer; font-size: 1.2rem; color: var(--text-color); }
+        .datepicker-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+        .datepicker-grid div { text-align: center; padding: 5px; border-radius: 4px; cursor: pointer; }
+        .datepicker-day-name { font-weight: 600; font-size: 0.8rem; color: var(--text-color-light); }
+        .datepicker-day:hover { background: var(--accent-color); }
+        .datepicker-day.selected { background: var(--accent-color-dark); color: var(--button-text-color); }
+        .datepicker-day.empty { cursor: default; }
+        .datepicker-day.empty:hover { background: none; }
+
+        /* Confirmation & Message Modal */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { 
+            background-color: rgba(255, 255, 255, 0.7);
+            padding: 2rem; 
+            border-radius: 12px; 
+            text-align: center; 
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); 
+            max-width: 90%; 
+            width: 400px;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        body.dark-theme .modal-content {
+            background-color: rgba(31, 41, 55, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .modal-buttons { margin-top: 1.5rem; display: flex; gap: 1rem; justify-content: center; }
+
+        /* Loading Overlay */
+        #loading-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #111827;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            color: white;
+            font-size: 1.5rem;
+        }
+        #loading-overlay canvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+        }
+        #loading-text { z-index: 1; }
+        #loading-progress-bar-container { width: 200px; height: 8px; background-color: rgba(255,255,255,0.3); border-radius: 4px; margin-top: 1rem; z-index: 1; }
+        #loading-progress-bar { width: 0%; height: 100%; background-color: white; border-radius: 4px; transition: width 0.5s; }
+        #loading-message { font-size: 1rem; margin-top: 0.5rem; z-index: 1; }
+
+        /* Save Indicator */
+        #save-indicator {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: var(--container-bg);
+            color: var(--text-color);
+            padding: 10px 20px;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            z-index: 5000;
+            opacity: 0;
+            transition: opacity 0.3s, transform 0.3s;
+            transform: translateY(20px);
+        }
+        #save-indicator.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Live Reactions */
+        #live-reactions { display: flex; gap: 0.5rem; }
+        .reaction-btn { background: none; border: none; font-size: 1.5rem; cursor: pointer; transition: transform 0.2s; }
+        .reaction-btn:hover { transform: scale(1.2); }
+        .floating-reaction {
+            position: fixed; /* Use fixed positioning to float over everything */
+            font-size: 2rem;
+            pointer-events: none;
+            z-index: 9999;
+            animation: float-up 1.5s ease-out forwards;
+        }
+        
+        /* Timeline Visualizer */
+        #timeline-visualizer-wrapper { overflow-x: auto; padding: 1rem 0; }
+        #timeline-visualizer { display: flex; align-items: center; padding: 2rem 0; min-width: max-content;}
+        .timeline-node { position: relative; display: flex; flex-direction: column; align-items: center; cursor: pointer; padding: 0 20px; }
+        .timeline-node .node-circle { width: 20px; height: 20px; border-radius: 50%; border: 3px solid; transition: transform 0.2s; }
+        .timeline-node:hover .node-circle { transform: scale(1.3); }
+        .timeline-node .node-title { margin-top: 10px; font-size: 0.8rem; text-align: center; max-width: 100px; white-space: normal; }
+        .node-status-In-Progress .node-circle { border-color: var(--accent-color-dark); background-color: var(--container-bg); }
+        .node-status-Completed .node-circle { border-color: var(--valid-green); background-color: var(--valid-green); }
+        .node-status-Obsolete .node-circle { border-color: var(--obsolete-red-dark); background-color: var(--obsolete-red-dark); }
+        .timeline-connector { flex-grow: 1; height: 2px; background-color: var(--border-color); min-width: 50px; }
+
+        /* Floating Action Button (FAB) */
+        #fab-add-stage {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            box-shadow: 0 6px 10px rgba(0,0,0,0.15);
+        }
+        #fab-add-stage .lucide {
+            width: 28px;
+            height: 28px;
+        }
+
+        /* Column Tabs for Mobile */
+        #column-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 1rem;
+        }
+        .tab-btn {
+            flex-grow: 1;
+            padding: 0.75rem;
+            border: none;
+            background-color: transparent;
+            color: var(--text-color-light);
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+        }
+        .tab-btn.active {
+            color: var(--text-color);
+            border-bottom-color: var(--accent-color-dark);
+        }
+
+        /* Animations */
+        @keyframes kenburns {
+            0% { transform: scale(1) translate(0, 0); }
+            50% { transform: scale(1.1) translate(-2%, 2%); }
+            100% { transform: scale(1) translate(0, 0); }
+        }
+        @keyframes card-fade-in {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .stage-card { animation: card-fade-in 0.5s ease-out backwards; }
+        .stage-card.flip-out { 
+            transition: transform 0.4s;
+            transform: rotateY(90deg) scale(0.9);
+        }
+        .comment-fly-out { animation: fly-out 0.8s ease-in forwards; }
+        @keyframes fly-out {
+            0% { transform: translateY(0) scale(1); opacity: 1; }
+            100% { transform: translateY(-200px) scale(0.5) rotate(15deg); opacity: 0; }
+        }
+        @keyframes float-up {
+            0% { transform: translateY(0); opacity: 1; }
+            100% { transform: translateY(-150px) scale(1.5); opacity: 0; }
+        }
+
+        /* --- NEW: Feature Animations & Interactions --- */
+
+        /* 1. Focus Mode */
+        body.focus-mode-active #app-container > * {
+            opacity: 0.5;
+            transition: opacity 0.4s ease, transform 0.4s ease;
+        }
+        body.focus-mode-active #app-container .in-focus {
+            opacity: 1;
+            transform: scale(1.02);
+            z-index: 10;
+            box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+        }
+
+        /* 2. Data Flow Particles */
+        .data-particle {
+            position: fixed;
+            width: 6px;
+            height: 6px;
+            background-color: var(--accent-color-dark);
+            border-radius: 50%;
+            box-shadow: 0 0 8px 2px var(--accent-color);
+            pointer-events: none;
+            z-index: 9999;
+            animation: data-flow-up 1s ease-out forwards;
+        }
+
+        @keyframes data-flow-up {
+            from {
+                transform: translateY(0) scale(1);
+                opacity: 1;
+            }
+            to {
+                transform: translateY(-150px) scale(0.5);
+                opacity: 0;
+            }
+        }
+
+        /* 3. Interactive Progress Bar Tooltip */
+        #progress-tooltip {
+            position: fixed;
+            background-color: var(--container-bg);
+            color: var(--text-color);
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            box-shadow: var(--shadow);
+            z-index: 1001;
+            pointer-events: none;
+            transition: opacity 0.2s;
+            transform: translate(-50%, -150%); /* Center horizontally, position above cursor */
+        }
+        #overall-progress-bar-highlight {
+            position: absolute;
+            top: -4px;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0) 70%);
+            pointer-events: none;
+            z-index: 2;
+            transform: translateX(-50%);
+        }
+        body.dark-theme #overall-progress-bar-highlight {
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 70%);
+        }
+        /* --- END NEW --- */
+
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            body { padding: 1rem; }
+            #app-header { flex-direction: column; gap: 1rem; }
+            #comment-input-wrapper { flex-direction: column; }
+        }
+
+        /* Media query for Tabbed view */
+        @media (max-width: 640px) {
+            #project-tracker-columns {
+                grid-template-columns: 1fr;
+            }
+            #column-tabs {
+                display: flex;
+            }
+            /* Hide the standard Add Stage button on mobile, FAB will be used */
+            #add-stage-btn {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    
+    <canvas id="constellation-bg"></canvas>
+
+    <div id="loading-overlay" class="hidden">
+        <canvas id="blueprint-canvas"></canvas>
+        <div id="loading-text">Loading...</div>
+        <div id="loading-progress-bar-container">
+            <div id="loading-progress-bar"></div>
+        </div>
+        <div id="loading-message"></div>
+    </div>
+
+    <div id="auth-screen">
+        <div id="initial-choice">
+            <h1>Welcome to the Project Tracker</h1>
+            <button class="auth-button" id="admin-choice-btn">I am Admin</button>
+            <button class="auth-button" id="visitor-choice-btn">I am a Visitor</button>
+        </div>
+        <div id="password-prompt" class="hidden">
+            <h2>Admin Login</h2>
+            <input type="password" id="password-input" placeholder="Enter password">
+            <p id="password-error" class="hidden">Incorrect password. Please try again.</p>
+            <button class="auth-button" id="login-btn">Login</button>
+            <button class="auth-button" id="back-to-choice-btn">Back</button>
+        </div>
+    </div>
+
+    <main id="app-container" class="hidden">
+        <div id="title-image-container">
+            <img id="title-image-preview" src="https://placehold.co/800x300/e5e7eb/4b5563?text=Title+Image" alt="Project title image" onerror="this.src='https://placehold.co/800x300/e5e7eb/4b5563?text=Image+Not+Found'">
+            <input type="file" id="title-image-upload" class="person-photo-upload" accept="image/*">
+        </div>
+
+        <div id="app-header">
+            <h1 id="main-title" contenteditable="false">WFS Visa Funnel Revamp (Fountain)</h1>
+            <div class="header-controls">
+                <div id="live-reactions" class="hidden">
+                    <button class="reaction-btn" title="Awesome!">👍</button>
+                    <button class="reaction-btn" title="Hooray!">🎉</button>
+                    <button class="reaction-btn" title="Great Idea!">💡</button>
+                    <button class="reaction-btn" title="Love it!">❤️</button>
+                </div>
+                <div class="theme-switch-wrapper">
+                    <label class="theme-switch" for="theme-checkbox">
+                        <input type="checkbox" id="theme-checkbox" />
+                        <div class="slider round"></div>
+                    </label>
+                </div>
+                <button id="logout-btn" class="primary-button">Logout</button>
+            </div>
+        </div>
+
+        <div id="overall-progress-bar-container">
+            <div id="overall-progress-bar"></div>
+            <div id="overall-progress-bar-highlight" class="hidden"></div>
+        </div>
+
+        <section class="collapsible-section" id="about-section">
+            <div class="collapsible-header">
+                <h2>About</h2>
+                <span class="toggle-icon" data-lucide="chevron-down"></span>
+            </div>
+            <div class="collapsible-content">
+                <div>
+                    <h3>Executive Summary</h3>
+                    <div id="executive-summary" class="editable"></div>
+                </div>
+                <div>
+                    <h3>Timeline</h3>
+                    <div class="timeline-item">
+                        <h4>Deadline (Tentative)</h4>
+                        <div class="date-input-wrapper">
+                            <input type="text" id="deadline-tentative" class="custom-date-input timeline-date" placeholder="Select date..." readonly>
+                        </div>
+                    </div>
+                    <div class="timeline-item" style="margin-top: 1rem;">
+                        <h4>Deadline (Actual)</h4>
+                        <div class="date-input-wrapper">
+                            <input type="text" id="deadline-actual" class="custom-date-input timeline-date" placeholder="Select date..." readonly>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <h3>Project Led By</h3>
+                    <div id="leader-details" class="person-details">
+                        <img id="leader-photo-preview" class="person-photo-preview" src="https://placehold.co/120x120/e5e7eb/4b5563?text=Photo" alt="Leader photo" onerror="this.src='https://placehold.co/120x120/e5e7eb/4b5563?text=Photo'">
+                        <div style="flex-grow: 1;">
+                            <input type="text" id="leader-name" placeholder="Leader's Name">
+                            <input type="file" id="leader-photo-upload" class="person-photo-upload" accept="image/*">
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <h3>Project Approved By</h3>
+                    <div id="approver-details" class="person-details">
+                        <img id="approver-photo-preview" class="person-photo-preview" src="https://placehold.co/120x120/e5e7eb/4b5563?text=Photo" alt="Approver photo" onerror="this.src='https://placehold.co/120x120/e5e7eb/4b5563?text=Photo'">
+                        <div style="flex-grow: 1;">
+                            <input type="text" id="approver-name" placeholder="Approver's Name">
+                            <input type="file" id="approver-photo-upload" class="person-photo-upload" accept="image/*">
+                        </div>
+                    </div>
+                </div>
+                 <div id="snapshot-container">
+                    <h3>Project Snapshot</h3>
+                    <p>Create a complete backup of the current project and reset the live version.</p>
+                    <button id="create-snapshot-btn" class="primary-button danger-button">Create Snapshot & Reset</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="collapsible-section" id="project-timeline-section">
+            <div class="collapsible-header">
+                <h2>Project Timeline</h2>
+                <span class="toggle-icon" data-lucide="chevron-down"></span>
+            </div>
+            <div class="collapsible-content">
+                <div id="timeline-visualizer-wrapper">
+                    <div id="timeline-visualizer"></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="collapsible-section" id="project-tracker-section">
+            <div class="collapsible-header">
+                <h2>Project Tracker</h2>
+                <span class="toggle-icon" data-lucide="chevron-down"></span>
+            </div>
+            <div class="collapsible-content" style="display: block; padding-top: 1.5rem;">
+                 <div id="column-tabs" class="hidden">
+                    <button class="tab-btn active" data-target="in-progress-column">In Progress</button>
+                    <button class="tab-btn" data-target="completed-column">Completed</button>
+                </div>
+                <div id="project-tracker-columns">
+                    <div class="tracker-column" id="in-progress-column">
+                        <div class="tracker-column-header">
+                            <h3>In Progress</h3>
+                            <span class="toggle-icon" data-lucide="chevron-down"></span>
+                        </div>
+                        <div class="tracker-column-content">
+                            <input type="text" class="search-bar" id="in-progress-search" placeholder="Search stages..." >
+                            <div id="in-progress-list"></div>
+                            <button id="add-stage-btn" class="primary-button">Add New Stage</button>
+                        </div>
+                    </div>
+                    <div class="tracker-column" id="completed-column">
+                        <div class="tracker-column-header">
+                            <h3>Completed</h3>
+                            <span class="toggle-icon" data-lucide="chevron-down"></span>
+                        </div>
+                        <div class="tracker-column-content">
+                             <input type="text" class="search-bar" id="completed-search" placeholder="Search completed..." >
+                            <div id="completed-list"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="collapsible-section" id="visitor-comments-section">
+            <div class="collapsible-header">
+                <h2>Visitor Comments</h2>
+                <span class="toggle-icon" data-lucide="chevron-down"></span>
+            </div>
+            <div class="collapsible-content">
+                <div id="comments-container"></div>
+                <div id="comment-input-area">
+                    <div id="comment-input-wrapper">
+                        <input type="text" id="visitor-name-input" placeholder="Your Name">
+                        <div style="position: relative; flex-grow: 1;">
+                            <textarea id="comment-input" placeholder="Add a comment..."></textarea>
+                            <div class="comment-actions">
+                                <button id="emoji-btn">😀</button>
+                            </div>
+                            <div id="emoji-panel" class="hidden"></div>
+                        </div>
+                    </div>
+                </div>
+                <button id="submit-comment-btn" class="primary-button" style="margin-top: 10px;">Submit</button>
+            </div>
+        </section>
+
+        <div id="progress-counter"></div>
+
+        <button id="fab-add-stage" class="primary-button hidden">
+            <span data-lucide="plus"></span>
+        </button>
+
+    </main>
+    
+    <div id="confirmation-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <p id="modal-text">Are you sure?</p>
+            <div class="modal-buttons">
+                <button id="modal-confirm-btn" class="primary-button danger-button">Confirm</button>
+                <button id="modal-cancel-btn" class="primary-button">Cancel</button>
+                <button id="modal-ok-btn" class="primary-button hidden">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="save-indicator">Saving...</div>
+
+    <div id="confetti-container"></div>
+    
+    <div id="progress-tooltip" class="hidden"></div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // --- STATE MANAGEMENT --- //
+            let state = {};
+            const defaultState = {
+                userRole: null,
+                visitorId: null,
+                about: {},
+                stages: [],
+                directions: [],
+                comments: [],
+                ui: {
+                    theme: 'light'
+                }
+            };
+            
+            // --- DOM ELEMENT SELECTORS --- //
+            const authScreen = document.getElementById('auth-screen');
+            const appContainer = document.getElementById('app-container');
+            const initialChoiceDiv = document.getElementById('initial-choice');
+            const passwordPromptDiv = document.getElementById('password-prompt');
+            const passwordInput = document.getElementById('password-input');
+            const passwordError = document.getElementById('password-error');
+            const inProgressList = document.getElementById('in-progress-list');
+            const completedList = document.getElementById('completed-list');
+            const commentsContainer = document.getElementById('comments-container');
+            const confirmationModal = document.getElementById('confirmation-modal');
+            const modalText = document.getElementById('modal-text');
+            const modalConfirmBtn = document.getElementById('modal-confirm-btn');
+            const modalCancelBtn = document.getElementById('modal-cancel-btn');
+            const modalOkBtn = document.getElementById('modal-ok-btn');
+            const loadingOverlay = document.getElementById('loading-overlay');
+            const saveIndicator = document.getElementById('save-indicator');
+            const fabAddStage = document.getElementById('fab-add-stage');
+            const timelineVisualizer = document.getElementById('timeline-visualizer');
+            const columnTabs = document.getElementById('column-tabs');
+            const projectTrackerColumns = document.getElementById('project-tracker-columns');
+
+            let confirmationCallback = null;
+
+            // --- BACKEND COMMUNICATION --- //
+            const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxaqa0Cbo9b7hMZzb5-Q2sQYhnSGGPG3bswKNfXZ4tI4Jn0_Mh58qaxUAJU6mMu6-pF/exec';
+
+            async function loadAppData() {
+                // Layer 1: Browser Cache (Session Storage)
+                const cached = sessionStorage.getItem('appData');
+                if (cached) {
+                    const { timestamp, data } = JSON.parse(cached);
+                    if (Date.now() - timestamp < 60000) { // 60 second cache
+                        console.log("Loading data from BROWSER cache.");
+                        return data;
+                    }
+                }
+
+                // Layer 2 & 3: Google Script Cache & Google Sheet
+                try {
+                    console.log("Fetching data from backend...");
+                    const response = await fetch(WEB_APP_URL);
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    const data = await response.json();
+                    
+                    // Save to browser cache for next time
+                    sessionStorage.setItem('appData', JSON.stringify({ timestamp: Date.now(), data: data }));
+                    return data;
+
+                } catch (error) {
+                    console.error('Failed to load app data:', error);
+                    showMessage('Could not load saved data. Starting with a default view.');
+                    return null; // Return null on failure
+                }
+            }
+            
+            let saveIndicatorTimeout;
+            function sendDataToBackend(data) {
+                clearTimeout(saveIndicatorTimeout);
+                saveIndicator.textContent = 'Saving...';
+                saveIndicator.classList.add('show');
+
+                // Invalidate browser cache immediately on save
+                sessionStorage.removeItem('appData');
+
+                fetch(WEB_APP_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(data),
+                })
+                .then(() => {
+                    console.log('Data sent to backend successfully.');
+                    saveIndicator.textContent = 'Update Saved ✔';
+                })
+                .catch(error => {
+                    console.error('Error sending data to backend:', error);
+                    saveIndicator.textContent = 'Error Saving!';
+                })
+                .finally(() => {
+                    saveIndicatorTimeout = setTimeout(() => {
+                        saveIndicator.classList.remove('show');
+                    }, 2000);
+                });
+            }
+
+            // --- UTILITY FUNCTIONS --- //
+            function generateUniqueId(prefix) {
+                return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).substr(2, 5)}`;
+            }
+
+            function fileToBase64(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.readAsDataURL(file);
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = error => reject(error);
+                });
+            }
+
+            // --- DATA INITIALIZATION --- //
+            function initializeLocalState() {
+                state = JSON.parse(JSON.stringify(defaultState));
+                let visitorId = localStorage.getItem('projectTrackerVisitorId');
+                if (!visitorId) {
+                    visitorId = generateUniqueId('visitor');
+                    localStorage.setItem('projectTrackerVisitorId', visitorId);
+                }
+                state.visitorId = visitorId;
+            }
+
+            // --- AUTHENTICATION & PERMISSIONS --- //
+            async function login(role) {
+                state.userRole = role;
+                loadingOverlay.classList.remove('hidden');
+                startBlueprintAnimation(role); // Start the animation
+                const data = await loadAppData();
+                if (data) {
+                    // Populate state with loaded data
+                    state.about = data.about || {};
+                    state.comments = data.comments || [];
+                    state.stages = (data.masterIndex || []).map(row => ({
+                        id: row[0],
+                        title: row[1],
+                        status: row[2],
+                        content: data.inProgressDetails[row[0]] || {}, // Load details for in-progress stages
+                        detailsLoaded: row[2] === 'In-Progress', // Mark in-progress as loaded
+                        collapsed: true,
+                        attachments: [],
+                        subSectionTitles: ['Stage Type', 'Data Collection Form/Rule', 'Idle Move Rule', 'Initial Message', 'Follow-Up Message', 'Comments', 'Notes']
+                    }));
+                }
+                // Ensure animation finishes before hiding overlay
+                setTimeout(() => {
+                    loadingOverlay.classList.add('hidden');
+                    stopBlueprintAnimation();
+                    initApp();
+                }, 2000);
+            }
+
+            function logout() {
+                sessionStorage.removeItem('appData'); // Clear session cache on logout
+                window.location.reload();
+            }
+
+            function initApp() {
+                authScreen.classList.add('hidden');
+                appContainer.classList.remove('hidden');
+                document.body.classList.toggle('admin-mode', state.userRole === 'admin');
+                document.body.classList.toggle('visitor-mode', state.userRole === 'visitor');
+                setTheme(localStorage.getItem('projectTrackerTheme') || 'light');
+                setupPermissions();
+                renderAll();
+                populateEmojiPanel();
+                setupMobileObservers();
+                
+                if (state.userRole === 'visitor' || state.userRole === 'admin') {
+                    initConstellation();
+                }
+            }
+
+            function setupPermissions() {
+                const isAdmin = state.userRole === 'admin';
+                document.getElementById('main-title').contentEditable = isAdmin;
+                document.getElementById('executive-summary').contentEditable = isAdmin;
+                document.getElementById('leader-name').disabled = !isAdmin;
+                document.getElementById('approver-name').disabled = !isAdmin;
+                document.getElementById('add-stage-btn').disabled = !isAdmin;
+                document.getElementById('create-snapshot-btn').style.display = isAdmin ? 'block' : 'none';
+                document.getElementById('visitor-name-input').disabled = false;
+                document.getElementById('comment-input').disabled = false;
+                document.getElementById('submit-comment-btn').disabled = false;
+                document.getElementById('emoji-btn').disabled = false;
+                
+                document.getElementById('live-reactions').classList.toggle('hidden', !isAdmin && state.userRole !== 'visitor');
+            }
+
+            // --- THEME MANAGEMENT --- //
+            function setTheme(theme) {
+                state.ui.theme = theme;
+                document.body.classList.toggle('dark-theme', theme === 'dark');
+                document.getElementById('theme-checkbox').checked = theme === 'dark';
+                localStorage.setItem('projectTrackerTheme', theme);
+            }
+
+            // --- RENDERING FUNCTIONS --- //
+            function renderAll() {
+                renderAbout();
+                renderTracker();
+                renderComments();
+                renderTimeline();
+                updateProgressBar();
+                updateProgressCounter();
+                lucide.createIcons(); // Render all new icons
+            }
+            
+            function renderAbout() {
+                document.getElementById('main-title').innerHTML = state.about['Project Title'] || 'WFS Visa Funnel Revamp (Fountain)';
+                document.getElementById('title-image-preview').src = state.about['Title Image'] || 'https://placehold.co/800x300/e5e7eb/4b5563?text=Title+Image';
+                document.getElementById('executive-summary').innerHTML = state.about['Executive Summary'] || 'Enter executive summary here...';
+                document.getElementById('deadline-tentative').value = state.about['Deadline (Tentative)'] || '';
+                document.getElementById('deadline-actual').value = state.about['Deadline (Actual)'] || '';
+                document.getElementById('leader-name').value = state.about['Leader Name'] || '';
+                document.getElementById('leader-photo-preview').src = state.about['Leader Photo'] || 'https://placehold.co/120x120/e5e7eb/4b5563?text=Photo';
+                document.getElementById('approver-name').value = state.about['Approver Name'] || '';
+                document.getElementById('approver-photo-preview').src = state.about['Approver Photo'] || 'https://placehold.co/120x120/e5e7eb/4b5563?text=Photo';
+            }
+
+            function renderTracker() {
+                const isAdmin = state.userRole === 'admin';
+                const inProgressSearchTerm = document.getElementById('in-progress-search').value.toLowerCase();
+                const completedSearchTerm = document.getElementById('completed-search').value.toLowerCase();
+                
+                inProgressList.innerHTML = '';
+                completedList.innerHTML = '';
+
+                state.stages.forEach(stage => {
+                    const stageElement = createStageElement(stage, isAdmin);
+                    if (stage.status === 'In-Progress') {
+                        if (stage.title.toLowerCase().includes(inProgressSearchTerm)) {
+                            inProgressList.appendChild(stageElement);
+                        }
+                    } else {
+                         if (stage.title.toLowerCase().includes(completedSearchTerm)) {
+                            completedList.appendChild(stageElement);
+                        }
+                    }
+                });
+                if ('ontouchstart' in window) {
+                    inProgressList.querySelectorAll('.stage-card').forEach(addSwipeListeners);
+                }
+            }
+            
+            function createStageElement(stage, isAdmin) {
+                const div = document.createElement('div');
+                div.className = 'stage-card';
+                div.dataset.id = stage.id;
+                
+                const statusClass = (stage.status === 'Completed') ? 'stage-completed-normal' : (stage.status === 'Obsolete' ? 'stage-completed-obsolete' : '');
+                if(statusClass) div.classList.add(statusClass);
+
+                if (stage.status === 'Completed' || stage.status === 'Obsolete') {
+                    div.classList.add('stage-read-only');
+                }
+                
+                const isReadOnly = stage.status !== 'In-Progress' || !isAdmin;
+
+                const editorToolbarHTML = `
+                    <div class="editor-toolbar">
+                        <button data-command="bold"><b>B</b></button> <button data-command="italic"><i>I</i></button> <button data-command="underline"><u>U</u></button>
+                        <button data-command="insertOrderedList">1.</button> <button data-command="insertUnorderedList">•</button>
+                    </div>
+                `;
+
+                const attachmentHTML = (index) => {
+                    if (stage.subSectionTitles[index] !== 'Comments') return '';
+                    const attachmentsList = (stage.attachments || []).map((file, fileIndex) => `
+                        <li><span>${file.name}</span> ${!isReadOnly ? `<button class="remove-attachment-btn" data-file-index="${fileIndex}">&times;</button>` : ''}</li>
+                    `).join('');
+                    return `<div class="attachment-section">${!isReadOnly ? `<input type="file" class="attachment-input" multiple>` : ''}<ul class="attachment-list">${attachmentsList}</ul></div>`;
+                };
+
+                const isCompletedChecked = stage.status === 'Completed';
+                const isObsoleteChecked = stage.status === 'Obsolete';
+
+                const stageContentHTML = stage.collapsed ? '' : `
+                    <div class="stage-content">
+                        ${isAdmin && stage.status === 'In-Progress' ? `
+                        <div class="stage-actions">
+                            <label class="stage-checkbox-label ${isObsoleteChecked ? 'checked' : ''}"><input type="checkbox" class="obsolete-checkbox"> Obsolete</label>
+                            <label class="stage-checkbox-label ${isCompletedChecked ? 'checked' : ''}"><input type="checkbox" class="complete-checkbox"> Completed</label>
+                        </div>` : ''}
+                        ${stage.subSectionTitles.map((title, index) => `
+                            <div>
+                                <h4 class="editable" data-index="${index}" ${!isReadOnly ? 'contenteditable="true"' : ''}>${title}</h4>
+                                ${!isReadOnly ? editorToolbarHTML : ''}
+                                <div class="editable stage-detail" data-index="${index}" style="${!isReadOnly ? 'border-top-left-radius: 0; border-top-right-radius: 0;' : ''}" ${!isReadOnly ? 'contenteditable="true"' : 'contenteditable="false"'}>${stage.content[title] || ''}</div>
+                                ${attachmentHTML(index)}
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+
+                const innerHTML = `
+                    <div class="stage-header">
+                        <span class="toggle-icon" data-lucide="chevron-down" style="${stage.collapsed ? 'transform: rotate(-90deg);' : ''}"></span>
+                        <div class="editable stage-title" ${!isReadOnly ? 'contenteditable="true"' : 'contenteditable="false"'}>${stage.title}</div>
+                        ${isAdmin ? `<span class="delete-stage-icon" data-lucide="x"></span>` : ''}
+                    </div>
+                    ${stageContentHTML}
+                `;
+
+                div.innerHTML = `
+                    <div class="swipe-actions swipe-actions-left">
+                        <button class="swipe-btn swipe-delete" data-action="delete" title="Delete"><span data-lucide="trash-2"></span></button>
+                    </div>
+                    <div class="swipe-actions swipe-actions-right">
+                        <button class="swipe-btn swipe-complete" data-action="complete" title="Complete"><span data-lucide="check"></span></button>
+                        <button class="swipe-btn swipe-obsolete" data-action="obsolete" title="Obsolete"><span data-lucide="x-circle"></span></button>
+                    </div>
+                    <div class="stage-card-inner" ${isAdmin ? 'draggable="true"' : ''}>
+                        ${innerHTML}
+                    </div>
+                `;
+                
+                return div;
+            }
+            
+            function renderComments() {
+                commentsContainer.innerHTML = '';
+                state.comments.forEach(comment => {
+                    const commentEl = createCommentElement(comment);
+                    commentsContainer.appendChild(commentEl);
+                });
+                commentsContainer.scrollTop = commentsContainer.scrollHeight;
+            }
+
+            function createCommentElement(comment) {
+                const commentEl = document.createElement('div');
+                commentEl.className = 'comment';
+                commentEl.dataset.id = comment.id;
+
+                commentEl.innerHTML = `
+                    <div class="comment-content"><p>${comment.text}</p></div>
+                    <div class="comment-meta">
+                        <strong>${comment.name || 'Anonymous'}</strong> - <span>${new Date(comment.timestamp).toLocaleString()}</span>
+                    </div>
+                `;
+                return commentEl;
+            }
+
+            function renderTimeline() {
+                timelineVisualizer.innerHTML = '';
+                if (state.stages.length === 0) return;
+
+                state.stages.forEach((stage, index) => {
+                    const nodeEl = document.createElement('div');
+                    nodeEl.className = `timeline-node node-status-${stage.status.replace('-', '')}`;
+                    nodeEl.dataset.stageId = stage.id;
+                    nodeEl.innerHTML = `
+                        <div class="node-circle" title="${stage.status}"></div>
+                        <div class="node-title">${stage.title}</div>
+                    `;
+                    timelineVisualizer.appendChild(nodeEl);
+
+                    if (index < state.stages.length - 1) {
+                        const connectorEl = document.createElement('div');
+                        connectorEl.className = 'timeline-connector';
+                        timelineVisualizer.appendChild(connectorEl);
+                    }
+                });
+            }
+
+            function updateProgressBar() {
+                const totalStages = state.stages.length;
+                if (totalStages === 0) {
+                    document.getElementById('overall-progress-bar').style.width = '0%';
+                    return;
+                }
+                const completedStages = state.stages.filter(s => s.status !== 'In-Progress').length;
+                const percentage = (completedStages / totalStages) * 100;
+                document.getElementById('overall-progress-bar').style.width = `${percentage}%`;
+            }
+
+            function updateProgressCounter() {
+                const total = state.stages.length;
+                const completed = state.stages.filter(s => s.status !== 'In-Progress').length;
+                document.getElementById('progress-counter').textContent = `Progress: ${completed} / ${total} Stages Completed`;
+            }
+            
+            // --- EVENT HANDLERS --- //
+            function setupEventListeners() {
+                // Auth Screen
+                document.getElementById('admin-choice-btn').addEventListener('click', () => { 
+                    initialChoiceDiv.classList.add('hidden'); 
+                    passwordPromptDiv.classList.remove('hidden'); 
+                    passwordInput.focus(); 
+                });
+                document.getElementById('visitor-choice-btn').addEventListener('click', () => login('visitor'));
+                document.getElementById('back-to-choice-btn').addEventListener('click', () => { passwordPromptDiv.classList.add('hidden'); initialChoiceDiv.classList.remove('hidden'); passwordInput.value = ''; passwordError.classList.add('hidden'); });
+                document.getElementById('login-btn').addEventListener('click', () => { if (passwordInput.value === '123456789') login('admin'); else passwordError.classList.remove('hidden'); });
+                passwordInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') document.getElementById('login-btn').click(); });
+
+                // Header buttons
+                document.getElementById('theme-checkbox').addEventListener('change', (e) => setTheme(e.target.checked ? 'dark' : 'light'));
+                document.getElementById('logout-btn').addEventListener('click', logout);
+                
+                // Search Bars
+                document.getElementById('in-progress-search').addEventListener('input', renderTracker);
+                document.getElementById('completed-search').addEventListener('input', renderTracker);
+
+                // --- Collapsible Section Handler --- //
+                document.querySelectorAll('.collapsible-header, .tracker-column-header').forEach(header => {
+                    header.addEventListener('click', (e) => {
+                        if(e.target.closest('button')) return;
+
+                        const content = header.nextElementSibling;
+                        const icon = header.querySelector('.toggle-icon');
+                        if (content) {
+                            const isHidden = content.classList.toggle('hidden');
+                            if (icon) {
+                                icon.style.transform = isHidden ? 'rotate(-90deg)' : 'rotate(0deg)';
+                            }
+                        }
+                    });
+                });
+
+                // --- 'About' Section Handlers --- //
+                document.getElementById('main-title').addEventListener('blur', e => {
+                    if (state.userRole !== 'admin') return;
+                    createDataFlowAnimation(e.target);
+                    sendDataToBackend({ type: 'aboutUpdate', payload: { field: 'Project Title', content: e.target.innerHTML }});
+                });
+
+                document.getElementById('executive-summary').addEventListener('blur', e => {
+                    if (state.userRole !== 'admin') return;
+                    createDataFlowAnimation(e.target);
+                    sendDataToBackend({ type: 'aboutUpdate', payload: { field: 'Executive Summary', content: e.target.innerHTML }});
+                });
+
+                ['leader-name', 'approver-name'].forEach(id => {
+                    document.getElementById(id).addEventListener('blur', e => {
+                        if (state.userRole !== 'admin') return;
+                        const fieldName = id === 'leader-name' ? 'Leader Name' : 'Approver Name';
+                        createDataFlowAnimation(e.target.parentElement);
+                        sendDataToBackend({ type: 'aboutUpdate', payload: { field: fieldName, content: e.target.value } });
+                    });
+                });
+                
+                async function handlePhotoUpload(file, section, fieldName) {
+                    const imageData = await fileToBase64(file);
+                    const payload = {
+                        section: section,
+                        field: fieldName,
+                        imageName: file.name,
+                        imageType: file.type,
+                        imageData: imageData
+                    };
+                    sendDataToBackend({ type: 'imageUpdate', payload: payload });
+                }
+
+                document.getElementById('title-image-upload').addEventListener('change', e => {
+                    if (e.target.files[0]) handlePhotoUpload(e.target.files[0], 'About', 'Title Image');
+                });
+                document.getElementById('leader-photo-upload').addEventListener('change', e => {
+                    if (e.target.files[0]) handlePhotoUpload(e.target.files[0], 'About', 'Leader Photo');
+                });
+                document.getElementById('approver-photo-upload').addEventListener('change', e => {
+                    if (e.target.files[0]) handlePhotoUpload(e.target.files[0], 'About', 'Approver Photo');
+                });
+                
+                // --- 'Project Tracker' Actions --- //
+                const addStageAction = () => {
+                    const newStage = { 
+                        id: generateUniqueId('stg'), 
+                        title: `New Stage ${state.stages.length + 1}`, 
+                        status: 'In-Progress', 
+                        content: {}, 
+                        collapsed: false, 
+                        attachments: [], 
+                        subSectionTitles: ['Stage Type', 'Data Collection Form/Rule', 'Idle Move Rule', 'Initial Message', 'Follow-Up Message', 'Comments', 'Notes'] 
+                    };
+                    state.stages.push(newStage);
+                    sendDataToBackend({ type: 'stageCreate', payload: { id: newStage.id, title: newStage.title, subsections: newStage.subSectionTitles.map(t => ({title: t, content: ''})) } });
+                    renderTracker();
+                    lucide.createIcons(); // Re-render icons after adding new card
+                };
+                
+                document.getElementById('add-stage-btn').addEventListener('click', addStageAction);
+                fabAddStage.addEventListener('click', addStageAction);
+                
+                // --- Visitor Comments Handler --- //
+                document.getElementById('submit-comment-btn').addEventListener('click', () => {
+                    const nameInput = document.getElementById('visitor-name-input');
+                    const commentInput = document.getElementById('comment-input');
+                    const name = nameInput.value.trim();
+                    const text = commentInput.value.trim();
+
+                    if (text && name) {
+                        const payload = { name: name, comment: text };
+                        sendDataToBackend({ type: 'visitorComment', payload: payload });
+                        
+                        const newComment = { id: generateUniqueId('cmt'), name, text, timestamp: Date.now() };
+                        state.comments.push(newComment);
+
+                        const newCommentEl = createCommentElement(newComment);
+                        commentsContainer.appendChild(newCommentEl);
+                        commentsContainer.scrollTop = commentsContainer.scrollHeight;
+
+                        const commentForm = document.getElementById('comment-input-area');
+                        commentForm.classList.add('comment-fly-out');
+                        commentForm.addEventListener('animationend', () => {
+                            commentForm.classList.remove('comment-fly-out');
+                            commentForm.style.transform = '';
+                            commentForm.style.opacity = '';
+                        }, { once: true });
+                        
+                        nameInput.value = '';
+                        commentInput.value = '';
+                    } else {
+                        showMessage('Please enter your name and a comment.');
+                    }
+                });
+                
+                document.getElementById('emoji-btn').addEventListener('click', () => {
+                    document.getElementById('emoji-panel').classList.toggle('hidden');
+                });
+                
+                document.getElementById('live-reactions').addEventListener('click', (e) => {
+                    const btn = e.target.closest('.reaction-btn');
+                    if (!btn) return;
+
+                    const rect = btn.getBoundingClientRect();
+                    const emoji = btn.textContent;
+
+                    const floatingEl = document.createElement('div');
+                    floatingEl.className = 'floating-reaction';
+                    floatingEl.textContent = emoji;
+                    floatingEl.style.top = `${rect.top}px`;
+                    floatingEl.style.left = `${rect.left + rect.width / 2 - 16}px`; // Center the 2rem emoji
+
+                    document.body.appendChild(floatingEl);
+
+                    floatingEl.addEventListener('animationend', () => {
+                        floatingEl.remove();
+                    });
+                });
+
+
+                // --- Dynamic Element Handlers (Event Delegation) --- //
+                appContainer.addEventListener('click', e => {
+                    const target = e.target;
+                    
+                    if (target.classList.contains('custom-date-input') && state.userRole === 'admin') {
+                        createDatePicker(target);
+                        return;
+                    }
+
+                    const timelineNode = target.closest('.timeline-node');
+                    if (timelineNode) {
+                        const stageId = timelineNode.dataset.stageId;
+                        const stageCard = document.querySelector(`.stage-card[data-id="${stageId}"]`);
+                        if (stageCard) {
+                            stageCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+                    }
+
+                    const stageCard = target.closest('.stage-card');
+                    if (stageCard) {
+                        const stageId = stageCard.dataset.id;
+                        
+                        if (target.classList.contains('toggle-icon') || (target.closest('.stage-header') && !target.closest('.editable') && !target.closest('.delete-stage-icon'))) {
+                             const stage = state.stages.find(s => s.id === stageId);
+                            if (stage) {
+                                stage.collapsed = !stage.collapsed;
+                                renderTracker(); // Re-render to show/hide content
+                                lucide.createIcons(); // Re-render icons after DOM change
+                            }
+                        }
+                        
+                        if (state.userRole === 'admin') {
+                            if (target.closest('.delete-stage-icon')) {
+                                deleteStage(stageId);
+                            } else if (target.classList.contains('complete-checkbox')) {
+                                moveStage(stageId, 'Completed');
+                            } else if (target.classList.contains('obsolete-checkbox')) {
+                                moveStage(stageId, 'Obsolete');
+                            }
+                            else if (target.classList.contains('swipe-btn')) {
+                                const action = target.dataset.action;
+                                if (action === 'delete') {
+                                    deleteStage(stageId);
+                                } else if (action === 'complete') {
+                                    moveStage(stageId, 'Completed');
+                                } else if (action === 'obsolete') {
+                                    moveStage(stageId, 'Obsolete');
+                                }
+                            }
+                        }
+                    }
+                });
+
+                appContainer.addEventListener('change', async e => {
+                    if (e.target.classList.contains('attachment-input')) {
+                        const stage = state.stages.find(s => s.id === e.target.closest('.stage-card').dataset.id);
+                        if (stage) {
+                            for (const file of e.target.files) {
+                                const imageData = await fileToBase64(file);
+                                stage.attachments.push({
+                                    name: file.name,
+                                    type: file.type,
+                                    data: imageData
+                                });
+                            }
+                            renderTracker();
+                        }
+                    }
+                });
+                
+                appContainer.addEventListener('blur', e => {
+                    const target = e.target;
+                    if (target.closest('.stage-card') && state.userRole === 'admin') {
+                        const stage = state.stages.find(s => s.id === target.closest('.stage-card').dataset.id);
+                        if (!stage || stage.status !== 'In-Progress') return;
+
+                        if (target.isContentEditable) {
+                            createDataFlowAnimation(target);
+                        }
+
+                        if (target.classList.contains('stage-title')) {
+                            stage.title = target.innerText;
+                            sendDataToBackend({ type: 'stageTitleUpdate', payload: { id: stage.id, title: stage.title } });
+                        }
+                        if (target.classList.contains('stage-detail')) {
+                            const detailIndex = Number(target.dataset.index);
+                            const subsectionTitle = stage.subSectionTitles[detailIndex];
+                            stage.content[subsectionTitle] = target.innerHTML;
+                            sendDataToBackend({ type: 'stageUpdate', payload: { stageId: stage.id, subsectionTitle: subsectionTitle, content: target.innerHTML } });
+                        }
+                        if (target.tagName === 'H4' && target.isContentEditable) {
+                            // This part is complex as it requires changing a key in an object.
+                            // Simplified: update the local state and send to backend to handle the key change.
+                            const detailIndex = Number(target.dataset.index);
+                            const oldTitle = stage.subSectionTitles[detailIndex];
+                            const newTitle = target.innerText;
+                            if (oldTitle !== newTitle) {
+                                // This requires more complex backend logic to rename a column.
+                                // For now, we'll just log it.
+                                console.log(`Title changed from "${oldTitle}" to "${newTitle}". Backend support needed.`);
+                            }
+                        }
+                    }
+                }, true);
+
+                // --- Drag and Drop --- //
+                let draggedItemId = null;
+                appContainer.addEventListener('dragstart', e => { if (state.userRole !== 'admin' || !e.target.classList.contains('stage-card-inner')) return; draggedItemId = e.target.closest('.stage-card').dataset.id; e.dataTransfer.effectAllowed = 'move'; setTimeout(() => e.target.closest('.stage-card').classList.add('dragging'), 0); });
+                appContainer.addEventListener('dragend', e => { if (!draggedItemId) return; e.target.closest('.stage-card').classList.remove('dragging'); document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over')); draggedItemId = null; });
+                appContainer.addEventListener('dragover', e => { e.preventDefault(); if (!draggedItemId) return; const targetCard = e.target.closest('.stage-card'); document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over')); if (targetCard && targetCard.dataset.id !== draggedItemId) { targetCard.classList.add('drag-over'); } });
+                appContainer.addEventListener('drop', e => {
+                    e.preventDefault();
+                    if (!draggedItemId) return;
+                    const targetColumnEl = e.target.closest('.tracker-column');
+                    if (!targetColumnEl) return;
+
+                    const newStatus = targetColumnEl.id === 'completed-column' ? 'Completed' : 'In-Progress';
+                    moveStage(draggedItemId, newStatus);
+                });
+
+                // Modal Handlers
+                modalConfirmBtn.addEventListener('click', () => { if (confirmationCallback) confirmationCallback(); confirmationModal.classList.add('hidden'); });
+                modalCancelBtn.addEventListener('click', () => { confirmationModal.classList.add('hidden'); });
+                modalOkBtn.addEventListener('click', () => { confirmationModal.classList.add('hidden'); });
+                
+                // Snapshot Button
+                document.getElementById('create-snapshot-btn').addEventListener('click', () => {
+                    showConfirmation("This will create a backup of the entire project and reset the current view. This action cannot be undone. Please enter your email to receive a link to the snapshot.", (email) => {
+                        if (email) {
+                           sendDataToBackend({ type: 'createSnapshot', payload: { adminEmail: email } });
+                           setTimeout(() => window.location.reload(), 2000);
+                        }
+                    }, true); // The 'true' indicates we need an input field
+                });
+                
+                // Tabbed view click handler
+                columnTabs.addEventListener('click', (e) => {
+                    const tabButton = e.target.closest('.tab-btn');
+                    if (!tabButton) return;
+
+                    const targetColumnId = tabButton.dataset.target;
+                    
+                    columnTabs.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+                    tabButton.classList.add('active');
+
+                    projectTrackerColumns.querySelectorAll('.tracker-column').forEach(col => {
+                        col.classList.toggle('hidden', col.id !== targetColumnId);
+                    });
+                });
+
+                // --- NEW: Focus Mode Event Listeners --- //
+                appContainer.addEventListener('focusin', e => {
+                    if (state.userRole !== 'admin' || !e.target.isContentEditable) return;
+
+                    // Remove focus from any other element first to handle tabbing
+                    document.querySelectorAll('.in-focus').forEach(el => el.classList.remove('in-focus'));
+                    
+                    const focusContainer = e.target.closest('.stage-card, .collapsible-section');
+                    if (focusContainer) {
+                        document.body.classList.add('focus-mode-active');
+                        focusContainer.classList.add('in-focus');
+                    }
+                });
+
+                appContainer.addEventListener('focusout', e => {
+                    if (state.userRole !== 'admin' || !e.target.isContentEditable) return;
+                    
+                    // The focusout event fires before the next focusin event.
+                    // A small timeout ensures we don't remove the class if focus is just moving to another editable field.
+                    setTimeout(() => {
+                        // Check if the new focused element is NOT an editable field within the app.
+                        if (!document.activeElement || !appContainer.contains(document.activeElement) || !document.activeElement.isContentEditable) {
+                            document.body.classList.remove('focus-mode-active');
+                            const inFocusElement = document.querySelector('.in-focus');
+                            if (inFocusElement) {
+                                inFocusElement.classList.remove('in-focus');
+                            }
+                        }
+                    }, 50);
+                });
+
+                // --- NEW: Progress Bar Event Listeners --- //
+                const progressBarContainer = document.getElementById('overall-progress-bar-container');
+                const progressTooltip = document.getElementById('progress-tooltip');
+                const progressBarHighlight = document.getElementById('overall-progress-bar-highlight');
+
+                progressBarContainer.addEventListener('mouseenter', () => {
+                    if (state.stages.length === 0) return;
+                    progressTooltip.classList.remove('hidden');
+                    progressBarHighlight.classList.remove('hidden');
+                });
+
+                progressBarContainer.addEventListener('mouseleave', () => {
+                    progressTooltip.classList.add('hidden');
+                    progressBarHighlight.classList.add('hidden');
+                });
+
+                progressBarContainer.addEventListener('mousemove', e => {
+                    if (state.stages.length === 0) return;
+
+                    const rect = progressBarContainer.getBoundingClientRect();
+                    const offsetX = e.clientX - rect.left;
+                    const percentage = Math.min(100, Math.max(0, (offsetX / rect.width) * 100));
+
+                    // Update and position tooltip
+                    progressTooltip.textContent = `${percentage.toFixed(0)}% Complete`;
+                    progressTooltip.style.left = `${e.clientX}px`;
+                    progressTooltip.style.top = `${e.clientY}px`;
+
+                    // Position highlight
+                    progressBarHighlight.style.left = `${offsetX}px`;
+                });
+            }
+
+            // --- CORE LOGIC FUNCTIONS --- //
+            function deleteStage(stageId) {
+                showConfirmation('Are you sure you want to permanently delete this stage?', () => {
+                    state.stages = state.stages.filter(s => s.id !== stageId);
+                    sendDataToBackend({ type: 'stageDelete', payload: { id: stageId } });
+                    renderAll();
+                });
+            }
+            
+            function moveStage(stageId, newStatus) {
+                const stage = state.stages.find(s => s.id === stageId);
+                if (stage && stage.status !== newStatus) {
+                    const stageCard = document.querySelector(`.stage-card[data-id="${stageId}"]`);
+
+                    if (stageCard) {
+                        stageCard.classList.add('flip-out');
+                    }
+                    
+                    setTimeout(() => {
+                        stage.status = newStatus;
+
+                        if (newStatus === 'Completed' || newStatus === 'Obsolete') {
+                            sendDataToBackend({ type: 'stageComplete', payload: { id: stage.id, status: newStatus } });
+                        }
+                        
+                        renderAll();
+                        checkCompletion();
+                    }, 400); 
+                }
+            }
+            
+            function checkCompletion() { 
+                if (state.stages.length > 0 && state.stages.every(s => s.status !== 'In-Progress')) {
+                    showCelebration(); 
+                }
+            }
+            
+            function showConfirmation(text, callback, requireInput = false) { 
+                modalText.innerHTML = text; // Use innerHTML to allow for line breaks
+                if (requireInput) {
+                    modalText.innerHTML += '<br><br><input type="email" id="modal-input" placeholder="Enter your email..." style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border-color);">';
+                }
+
+                confirmationCallback = () => {
+                    const input = document.getElementById('modal-input');
+                    callback(input ? input.value : true);
+                };
+                
+                modalConfirmBtn.classList.remove('hidden');
+                modalCancelBtn.classList.remove('hidden');
+                modalOkBtn.classList.add('hidden');
+                confirmationModal.classList.remove('hidden'); 
+            }
+
+            function showMessage(text) {
+                modalText.innerHTML = text;
+                modalConfirmBtn.classList.add('hidden');
+                modalCancelBtn.classList.add('hidden');
+                modalOkBtn.classList.remove('hidden');
+                confirmationModal.classList.remove('hidden');
+            }
+            
+            function createDatePicker(targetInput) {
+                document.querySelectorAll('.datepicker').forEach(dp => dp.remove());
+                let currentDate = targetInput.value ? new Date(targetInput.value) : new Date();
+                if (isNaN(currentDate.getTime())) currentDate = new Date();
+                const datepicker = document.createElement('div');
+                datepicker.className = 'datepicker';
+                
+                function renderCalendar(date) {
+                    const year = date.getFullYear();
+                    const month = date.getMonth();
+                    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+                    const dayNames = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+                    const firstDay = new Date(year, month, 1).getDay();
+                    const daysInMonth = new Date(year, month + 1, 0).getDate();
+                    
+                    let gridHTML = `<div class="datepicker-header"><button class="prev-month">&lt;</button><span>${monthNames[month]} ${year}</span><button class="next-month">&gt;</button></div><div class="datepicker-grid">`;
+                    dayNames.forEach(day => gridHTML += `<div class="datepicker-day-name">${day}</div>`);
+                    for (let i = 0; i < firstDay; i++) gridHTML += `<div class="empty"></div>`;
+                    for (let i = 1; i <= daysInMonth; i++) {
+                        const dayDate = new Date(year, month, i);
+                        const isSelected = targetInput.value && new Date(targetInput.value).toDateString() === dayDate.toDateString();
+                        gridHTML += `<div class="datepicker-day ${isSelected ? 'selected' : ''}" data-date="${dayDate.toISOString().split('T')[0]}">${i}</div>`;
+                    }
+                    gridHTML += `</div>`;
+                    datepicker.innerHTML = gridHTML;
+                }
+
+                datepicker.addEventListener('click', e => {
+                    e.stopPropagation();
+                    if (e.target.classList.contains('datepicker-day') && !e.target.classList.contains('empty')) {
+                        const selectedDate = e.target.dataset.date;
+                        targetInput.value = selectedDate;
+                        
+                        let fieldName = targetInput.id === 'deadline-tentative' ? 'Deadline (Tentative)' : 'Deadline (Actual)';
+                        sendDataToBackend({ type: 'aboutUpdate', payload: { field: fieldName, content: selectedDate }});
+
+                        datepicker.remove();
+                    }
+                    if (e.target.classList.contains('prev-month')) { currentDate.setMonth(currentDate.getMonth() - 1); renderCalendar(currentDate); }
+                    if (e.target.classList.contains('next-month')) { currentDate.setMonth(currentDate.getMonth() + 1); renderCalendar(currentDate); }
+                });
+
+                targetInput.parentNode.appendChild(datepicker);
+                renderCalendar(currentDate);
+                document.addEventListener('click', (e) => { if (!datepicker.contains(e.target) && e.target !== targetInput) datepicker.remove(); }, { once: true });
+            }
+
+            function populateEmojiPanel() {
+                const emojiPanel = document.getElementById('emoji-panel');
+                if(emojiPanel.childElementCount > 0) return;
+                const emojis = ['😀', '😂', '😍', '🤔', '👍', '👎', '❤️', '🎉', '🔥', '💡', '🙏', '💯', '😊', '😢', '😠', '😎'];
+                emojis.forEach(emoji => {
+                    const span = document.createElement('span');
+                    span.textContent = emoji;
+                    span.addEventListener('click', () => {
+                        document.getElementById('comment-input').value += emoji;
+                        emojiPanel.classList.add('hidden');
+                    });
+                    emojiPanel.appendChild(span);
+                });
+            }
+
+            function addSwipeListeners(card) {
+                if (state.userRole !== 'admin') return;
+
+                const cardInner = card.querySelector('.stage-card-inner');
+                let startX, currentX, deltaX = 0, isSwiping = false;
+                const swipeThreshold = 50;
+                const maxSwipe = 80; // max distance for one side
+
+                function handleTouchStart(e) {
+                    if (e.target.closest('.editable, .primary-button, input, textarea')) return;
+                    startX = e.touches[0].clientX;
+                    isSwiping = true;
+                    cardInner.style.transition = 'none';
+                }
+
+                function handleTouchMove(e) {
+                    if (!isSwiping) return;
+                    currentX = e.touches[0].clientX;
+                    deltaX = currentX - startX;
+                    
+                    const stage = state.stages.find(s => s.id === card.dataset.id);
+                    if (stage.status !== 'In-Progress') {
+                        deltaX = Math.min(0, deltaX);
+                    }
+
+                    const translate = Math.max(-maxSwipe, Math.min(maxSwipe * 2, deltaX));
+                    cardInner.style.transform = `translateX(${translate}px)`;
+                }
+
+                function handleTouchEnd() {
+                    if (!isSwiping) return;
+                    isSwiping = false;
+                    cardInner.style.transition = 'transform 0.3s ease';
+
+                    if (deltaX < -swipeThreshold) { // Swiped left
+                        cardInner.style.transform = `translateX(${-maxSwipe * 2}px)`;
+                    } else if (deltaX > swipeThreshold) { // Swiped right
+                        cardInner.style.transform = `translateX(${maxSwipe}px)`;
+                    } else { // Didn't pass threshold, snap back
+                        cardInner.style.transform = 'translateX(0px)';
+                    }
+                }
+                
+                card.addEventListener('touchstart', handleTouchStart, { passive: true });
+                card.addEventListener('touchmove', handleTouchMove, { passive: true });
+                card.addEventListener('touchend', handleTouchEnd, { passive: true });
+            }
+            
+            // --- ANIMATION & UI FUNCTIONS --- //
+            
+            /* --- NEW: Data Flow Animation Function --- */
+            function createDataFlowAnimation(element) {
+                if (!element || state.userRole !== 'admin') return;
+
+                const rect = element.getBoundingClientRect();
+                const particleCount = 5;
+
+                for (let i = 0; i < particleCount; i++) {
+                    const particle = document.createElement('div');
+                    particle.className = 'data-particle';
+
+                    // Start from a random point within the element
+                    const startX = rect.left + Math.random() * rect.width;
+                    const startY = rect.top + Math.random() * rect.height;
+
+                    particle.style.left = `${startX}px`;
+                    particle.style.top = `${startY}px`;
+                    particle.style.animationDelay = `${Math.random() * 0.2}s`;
+                    
+                    document.body.appendChild(particle);
+
+                    particle.addEventListener('animationend', () => {
+                        particle.remove();
+                    });
+                }
+            }
+            
+            function showCelebration() {
+                console.log("All stages complete! Celebrating!");
+                confetti({
+                    particleCount: 100,
+                    spread: 70,
+                    origin: { y: 0.6 }
+                });
+                
+                showMessage('🎉 Congratulations! All project stages have been completed! 🎉');
+            }
+            
+            function setupMobileObservers() {
+                const mediaQuery = window.matchMedia('(max-width: 640px)');
+
+                function handleScreenChange(e) {
+                    const isMobile = e.matches;
+                    columnTabs.classList.toggle('hidden', !isMobile);
+                    
+                    if (isMobile) {
+                        columnTabs.querySelector('.tab-btn').click();
+                    } else {
+                        projectTrackerColumns.querySelectorAll('.tracker-column').forEach(col => col.classList.remove('hidden'));
+                    }
+
+                    fabAddStage.classList.toggle('hidden', !isMobile || state.userRole !== 'admin');
+                }
+
+                mediaQuery.addEventListener('change', handleScreenChange);
+                handleScreenChange(mediaQuery); // Initial check
+            }
+
+            let blueprintAnimationId;
+            function startBlueprintAnimation(role) {
+                const canvas = document.getElementById('blueprint-canvas');
+                const ctx = canvas.getContext('2d');
+                const loadingText = document.getElementById('loading-text');
+                const loadingMessage = document.getElementById('loading-message');
+                
+                loadingText.textContent = role === 'admin' ? 'Assembling Control Panel...' : 'Unrolling Project Blueprint...';
+                loadingMessage.textContent = 'Fetching latest data...';
+
+                let width, height;
+                let progress = 0;
+                let startTime = null;
+                const animationDuration = 2000; // 2 seconds
+
+                function setup() {
+                    width = canvas.width = window.innerWidth;
+                    height = canvas.height = window.innerHeight;
+                }
+
+                function draw(timestamp) {
+                    if (!startTime) startTime = timestamp;
+                    const elapsed = timestamp - startTime;
+                    progress = Math.min(elapsed / animationDuration, 1);
+
+                    ctx.clearRect(0, 0, width, height);
+                    ctx.strokeStyle = 'rgba(100, 200, 255, 0.5)';
+                    ctx.fillStyle = 'rgba(100, 200, 255, 0.7)';
+                    ctx.lineWidth = 1;
+                    
+                    ctx.globalAlpha = progress * 0.5;
+                    for (let i = 0; i < width; i += 50) { 
+                        ctx.beginPath();
+                        ctx.moveTo(i, 0); 
+                        ctx.lineTo(i, height); 
+                        ctx.stroke();
+                    }
+                    for (let j = 0; j < height; j += 50) { 
+                        ctx.beginPath();
+                        ctx.moveTo(0, j); 
+                        ctx.lineTo(width, j); 
+                        ctx.stroke();
+                    }
+                    ctx.globalAlpha = 1;
+
+                    const rectProgress = Math.min(progress / 0.5, 1);
+                    if(rectProgress > 0) {
+                        ctx.beginPath();
+                        ctx.rect(width * 0.2, height * 0.2, width * 0.6 * rectProgress, height * 0.6);
+                        ctx.stroke();
+                    }
+                    
+                    document.getElementById('loading-progress-bar').style.width = `${progress * 100}%`;
+                    if (progress >= 0.5) { loadingMessage.textContent = 'Rendering components...'; }
+                    
+                    if (progress < 1) {
+                        blueprintAnimationId = requestAnimationFrame(draw);
+                    }
+                }
+                
+                window.addEventListener('resize', setup);
+                setup();
+                blueprintAnimationId = requestAnimationFrame(draw);
+            }
+
+            function stopBlueprintAnimation() {
+                cancelAnimationFrame(blueprintAnimationId);
+            }
+
+            /**
+             * MODIFIED: This function now creates a more lively starry night with prominent
+             * twinkling stars and occasional shooting stars.
+             */
+            function initConstellation() {
+                document.body.classList.add('constellation-active');
+
+                const canvas = document.getElementById('constellation-bg');
+                const ctx = canvas.getContext('2d');
+                if (!canvas || !ctx) return;
+
+                const isAdmin = state.userRole === 'admin';
+                // Admin gets pinkish stars, visitor gets whiter stars
+                const starColor = isAdmin ? '249, 168, 212' : '255, 255, 255';
+                
+                let stars = [];
+                let shootingStars = []; // Array for shooting stars
+                let animationFrameId;
+
+                function setup() {
+                    canvas.width = window.innerWidth;
+                    canvas.height = window.innerHeight;
+                    stars = [];
+                    shootingStars = []; // Reset on resize
+
+                    // More stars for a denser field
+                    const numStars = window.innerWidth / 10;
+                    for (let i = 0; i < numStars; i++) {
+                        stars.push({
+                            x: Math.random() * canvas.width,
+                            y: Math.random() * canvas.height,
+                            // Stars are slightly larger and more varied in size
+                            radius: Math.random() * 2 + 0.5,
+                            // Stars are more prominent (less transparent)
+                            alpha: Math.random() * 0.7 + 0.3,
+                            // A slightly faster twinkle
+                            dAlpha: (Math.random() * 0.02) - 0.01
+                        });
+                    }
+                }
+
+                function createShootingStar() {
+                    const x = Math.random() * canvas.width;
+                    const y = 0; // Start at the top
+                    shootingStars.push({
+                        x: x,
+                        y: y,
+                        len: Math.random() * 80 + 10,
+                        speed: Math.random() * 10 + 5,
+                        alpha: 1,
+                        // Angle between 45 and 135 degrees for downward travel
+                        angle: Math.PI / 4 + (Math.random() * Math.PI / 2)
+                    });
+                }
+
+                function draw() {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                    // --- 1. Draw twinkling background stars ---
+                    stars.forEach(star => {
+                        // Twinkle effect
+                        star.alpha += star.dAlpha;
+                        if (star.alpha <= 0.3 || star.alpha >= 1) {
+                            star.dAlpha *= -1;
+                        }
+
+                        // Draw star
+                        ctx.beginPath();
+                        ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+                        ctx.fillStyle = `rgba(${starColor}, ${star.alpha})`;
+                        ctx.fill();
+                    });
+
+
+                    // --- 2. Create and draw shooting stars ---
+
+                    // Randomly create a new shooting star
+                    if (Math.random() < 0.015 && shootingStars.length < 5) {
+                        createShootingStar();
+                    }
+
+                    // Use a reverse loop for safe removal of elements
+                    for (let i = shootingStars.length - 1; i >= 0; i--) {
+                        const ss = shootingStars[i];
+
+                        // Update position
+                        ss.x += ss.speed * Math.cos(ss.angle);
+                        ss.y += ss.speed * Math.sin(ss.angle);
+                        ss.alpha *= 0.99; // Fade out over time
+
+                        // Remove if off-screen or invisible
+                        if (ss.y > canvas.height || ss.x > canvas.width || ss.alpha < 0.01) {
+                            shootingStars.splice(i, 1);
+                            continue; // Skip to next star
+                        }
+                        
+                        // Draw shooting star tail
+                        const tailX = ss.x - ss.len * Math.cos(ss.angle);
+                        const tailY = ss.y - ss.len * Math.sin(ss.angle);
+
+                        const gradient = ctx.createLinearGradient(ss.x, ss.y, tailX, tailY);
+                        gradient.addColorStop(0, `rgba(${starColor}, ${ss.alpha})`);
+                        gradient.addColorStop(1, `rgba(${starColor}, 0)`);
+                        
+                        ctx.beginPath();
+                        ctx.moveTo(tailX, tailY);
+                        ctx.lineTo(ss.x, ss.y);
+                        ctx.strokeStyle = gradient;
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
+                    }
+
+
+                    animationFrameId = requestAnimationFrame(draw);
+                }
+
+                setup();
+                draw();
+
+                // Re-setup on window resize
+                window.addEventListener('resize', () => {
+                    cancelAnimationFrame(animationFrameId);
+                    setup();
+                    draw();
+                });
+            }
+
+
+            // --- INITIALIZATION --- //
+            initializeLocalState();
+            setupEventListeners();
+        });
+    </script>
+</body>
+</html>
