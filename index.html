@@ -101,7 +101,6 @@
             height: 12px;
             margin-bottom: 2rem;
             overflow: hidden;
-            /* --- NEW: Added for tooltip functionality --- */
             position: relative;
             cursor: pointer;
         }
@@ -144,9 +143,9 @@
         /* About Section Specifics */
         #title-image-container { text-align: center; margin-bottom: 1.5rem; overflow: hidden; border-radius: 12px; }
         #title-image-preview { 
-            display: block; /* MODIFIED: Ensure image is a block element for centering */
-            margin-left: auto; /* MODIFIED: Center the block horizontally */
-            margin-right: auto; /* MODIFIED: Center the block horizontally */
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
             max-width: 100%; 
             max-height: 300px; 
             border-radius: 12px; 
@@ -346,7 +345,7 @@
         .reaction-btn { background: none; border: none; font-size: 1.5rem; cursor: pointer; transition: transform 0.2s; }
         .reaction-btn:hover { transform: scale(1.2); }
         .floating-reaction {
-            position: fixed; /* Use fixed positioning to float over everything */
+            position: fixed;
             font-size: 2rem;
             pointer-events: none;
             z-index: 9999;
@@ -432,9 +431,7 @@
             100% { transform: translateY(-150px) scale(1.5); opacity: 0; }
         }
 
-        /* --- NEW: Feature Animations & Interactions --- */
-
-        /* 1. Focus Mode */
+        /* Feature Animations & Interactions */
         body.focus-mode-active #app-container > * {
             opacity: 0.5;
             transition: opacity 0.4s ease, transform 0.4s ease;
@@ -445,8 +442,6 @@
             z-index: 10;
             box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
         }
-
-        /* 2. Data Flow Particles */
         .data-particle {
             position: fixed;
             width: 6px;
@@ -458,7 +453,6 @@
             z-index: 9999;
             animation: data-flow-up 1s ease-out forwards;
         }
-
         @keyframes data-flow-up {
             from {
                 transform: translateY(0) scale(1);
@@ -469,8 +463,6 @@
                 opacity: 0;
             }
         }
-
-        /* 3. Interactive Progress Bar Tooltip */
         #progress-tooltip {
             position: fixed;
             background-color: var(--container-bg);
@@ -483,7 +475,7 @@
             z-index: 1001;
             pointer-events: none;
             transition: opacity 0.2s;
-            transform: translate(-50%, -150%); /* Center horizontally, position above cursor */
+            transform: translate(-50%, -150%);
         }
         #overall-progress-bar-highlight {
             position: absolute;
@@ -499,7 +491,6 @@
         body.dark-theme #overall-progress-bar-highlight {
             background: radial-gradient(circle, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 70%);
         }
-        /* --- END NEW --- */
 
 
         /* Responsive Design */
@@ -517,7 +508,6 @@
             #column-tabs {
                 display: flex;
             }
-            /* Hide the standard Add Stage button on mobile, FAB will be used */
             #add-stage-btn {
                 display: none;
             }
@@ -731,7 +721,6 @@
     
     <div id="progress-tooltip" class="hidden"></div>
 
-
     <script>
         document.addEventListener('DOMContentLoaded', () => {
 
@@ -794,14 +783,13 @@
                     if (!response.ok) throw new Error('Network response was not ok');
                     const data = await response.json();
                     
-                    // Save to browser cache for next time
                     sessionStorage.setItem('appData', JSON.stringify({ timestamp: Date.now(), data: data }));
                     return data;
 
                 } catch (error) {
                     console.error('Failed to load app data:', error);
                     showMessage('Could not load saved data. Starting with a default view.');
-                    return null; // Return null on failure
+                    return null;
                 }
             }
             
@@ -811,7 +799,6 @@
                 saveIndicator.textContent = 'Saving...';
                 saveIndicator.classList.add('show');
 
-                // Invalidate browser cache immediately on save
                 sessionStorage.removeItem('appData');
 
                 fetch(WEB_APP_URL, {
@@ -864,24 +851,22 @@
             async function login(role) {
                 state.userRole = role;
                 loadingOverlay.classList.remove('hidden');
-                startBlueprintAnimation(role); // Start the animation
+                startBlueprintAnimation(role);
                 const data = await loadAppData();
                 if (data) {
-                    // Populate state with loaded data
                     state.about = data.about || {};
                     state.comments = data.comments || [];
                     state.stages = (data.masterIndex || []).map(row => ({
                         id: row[0],
                         title: row[1],
                         status: row[2],
-                        content: data.inProgressDetails[row[0]] || {}, // Load details for in-progress stages
-                        detailsLoaded: row[2] === 'In-Progress', // Mark in-progress as loaded
+                        content: data.inProgressDetails[row[0]] || {},
+                        detailsLoaded: row[2] === 'In-Progress',
                         collapsed: true,
                         attachments: [],
                         subSectionTitles: ['Stage Type', 'Data Collection Form/Rule', 'Idle Move Rule', 'Initial Message', 'Follow-Up Message', 'Comments', 'Notes']
                     }));
                 }
-                // Ensure animation finishes before hiding overlay
                 setTimeout(() => {
                     loadingOverlay.classList.add('hidden');
                     stopBlueprintAnimation();
@@ -890,7 +875,7 @@
             }
 
             function logout() {
-                sessionStorage.removeItem('appData'); // Clear session cache on logout
+                sessionStorage.removeItem('appData');
                 window.location.reload();
             }
 
@@ -918,11 +903,6 @@
                 document.getElementById('approver-name').disabled = !isAdmin;
                 document.getElementById('add-stage-btn').disabled = !isAdmin;
                 document.getElementById('create-snapshot-btn').style.display = isAdmin ? 'block' : 'none';
-                document.getElementById('visitor-name-input').disabled = false;
-                document.getElementById('comment-input').disabled = false;
-                document.getElementById('submit-comment-btn').disabled = false;
-                document.getElementById('emoji-btn').disabled = false;
-                
                 document.getElementById('live-reactions').classList.toggle('hidden', !isAdmin && state.userRole !== 'visitor');
             }
 
@@ -942,7 +922,7 @@
                 renderTimeline();
                 updateProgressBar();
                 updateProgressCounter();
-                lucide.createIcons(); // Render all new icons
+                lucide.createIcons();
             }
             
             function renderAbout() {
@@ -1140,11 +1120,10 @@
                 document.getElementById('in-progress-search').addEventListener('input', renderTracker);
                 document.getElementById('completed-search').addEventListener('input', renderTracker);
 
-                // --- Collapsible Section Handler --- //
+                // Collapsible Section Handler
                 document.querySelectorAll('.collapsible-header, .tracker-column-header').forEach(header => {
                     header.addEventListener('click', (e) => {
                         if(e.target.closest('button')) return;
-
                         const content = header.nextElementSibling;
                         const icon = header.querySelector('.toggle-icon');
                         if (content) {
@@ -1159,12 +1138,16 @@
                 // --- 'About' Section Handlers --- //
                 document.getElementById('main-title').addEventListener('blur', e => {
                     if (state.userRole !== 'admin') return;
+                    // Optimistic update
+                    state.about['Project Title'] = e.target.innerHTML;
                     createDataFlowAnimation(e.target);
                     sendDataToBackend({ type: 'aboutUpdate', payload: { field: 'Project Title', content: e.target.innerHTML }});
                 });
 
                 document.getElementById('executive-summary').addEventListener('blur', e => {
                     if (state.userRole !== 'admin') return;
+                    // Optimistic update
+                    state.about['Executive Summary'] = e.target.innerHTML;
                     createDataFlowAnimation(e.target);
                     sendDataToBackend({ type: 'aboutUpdate', payload: { field: 'Executive Summary', content: e.target.innerHTML }});
                 });
@@ -1173,6 +1156,8 @@
                     document.getElementById(id).addEventListener('blur', e => {
                         if (state.userRole !== 'admin') return;
                         const fieldName = id === 'leader-name' ? 'Leader Name' : 'Approver Name';
+                        // Optimistic update
+                        state.about[fieldName] = e.target.value;
                         createDataFlowAnimation(e.target.parentElement);
                         sendDataToBackend({ type: 'aboutUpdate', payload: { field: fieldName, content: e.target.value } });
                     });
@@ -1180,6 +1165,16 @@
                 
                 async function handlePhotoUpload(file, section, fieldName) {
                     const imageData = await fileToBase64(file);
+                    // Optimistic UI Update
+                    if (fieldName === 'Title Image') {
+                        document.getElementById('title-image-preview').src = imageData;
+                    } else if (fieldName === 'Leader Photo') {
+                        document.getElementById('leader-photo-preview').src = imageData;
+                    } else if (fieldName === 'Approver Photo') {
+                        document.getElementById('approver-photo-preview').src = imageData;
+                    }
+                    state.about[fieldName] = imageData;
+
                     const payload = {
                         section: section,
                         field: fieldName,
@@ -1214,7 +1209,7 @@
                     state.stages.push(newStage);
                     sendDataToBackend({ type: 'stageCreate', payload: { id: newStage.id, title: newStage.title, subsections: newStage.subSectionTitles.map(t => ({title: t, content: ''})) } });
                     renderTracker();
-                    lucide.createIcons(); // Re-render icons after adding new card
+                    lucide.createIcons();
                 };
                 
                 document.getElementById('add-stage-btn').addEventListener('click', addStageAction);
@@ -1230,14 +1225,11 @@
                     if (text && name) {
                         const payload = { name: name, comment: text };
                         sendDataToBackend({ type: 'visitorComment', payload: payload });
-                        
                         const newComment = { id: generateUniqueId('cmt'), name, text, timestamp: Date.now() };
                         state.comments.push(newComment);
-
                         const newCommentEl = createCommentElement(newComment);
                         commentsContainer.appendChild(newCommentEl);
                         commentsContainer.scrollTop = commentsContainer.scrollHeight;
-
                         const commentForm = document.getElementById('comment-input-area');
                         commentForm.classList.add('comment-fly-out');
                         commentForm.addEventListener('animationend', () => {
@@ -1245,7 +1237,6 @@
                             commentForm.style.transform = '';
                             commentForm.style.opacity = '';
                         }, { once: true });
-                        
                         nameInput.value = '';
                         commentInput.value = '';
                     } else {
@@ -1260,23 +1251,18 @@
                 document.getElementById('live-reactions').addEventListener('click', (e) => {
                     const btn = e.target.closest('.reaction-btn');
                     if (!btn) return;
-
                     const rect = btn.getBoundingClientRect();
                     const emoji = btn.textContent;
-
                     const floatingEl = document.createElement('div');
                     floatingEl.className = 'floating-reaction';
                     floatingEl.textContent = emoji;
                     floatingEl.style.top = `${rect.top}px`;
-                    floatingEl.style.left = `${rect.left + rect.width / 2 - 16}px`; // Center the 2rem emoji
-
+                    floatingEl.style.left = `${rect.left + rect.width / 2 - 16}px`;
                     document.body.appendChild(floatingEl);
-
                     floatingEl.addEventListener('animationend', () => {
                         floatingEl.remove();
                     });
                 });
-
 
                 // --- Dynamic Element Handlers (Event Delegation) --- //
                 appContainer.addEventListener('click', e => {
@@ -1286,7 +1272,6 @@
                         createDatePicker(target);
                         return;
                     }
-
                     const timelineNode = target.closest('.timeline-node');
                     if (timelineNode) {
                         const stageId = timelineNode.dataset.stageId;
@@ -1295,20 +1280,17 @@
                             stageCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
                         }
                     }
-
                     const stageCard = target.closest('.stage-card');
                     if (stageCard) {
                         const stageId = stageCard.dataset.id;
-                        
                         if (target.classList.contains('toggle-icon') || (target.closest('.stage-header') && !target.closest('.editable') && !target.closest('.delete-stage-icon'))) {
                              const stage = state.stages.find(s => s.id === stageId);
                             if (stage) {
                                 stage.collapsed = !stage.collapsed;
-                                renderTracker(); // Re-render to show/hide content
-                                lucide.createIcons(); // Re-render icons after DOM change
+                                renderTracker();
+                                lucide.createIcons();
                             }
                         }
-                        
                         if (state.userRole === 'admin') {
                             if (target.closest('.delete-stage-icon')) {
                                 deleteStage(stageId);
@@ -1337,11 +1319,7 @@
                         if (stage) {
                             for (const file of e.target.files) {
                                 const imageData = await fileToBase64(file);
-                                stage.attachments.push({
-                                    name: file.name,
-                                    type: file.type,
-                                    data: imageData
-                                });
+                                stage.attachments.push({ name: file.name, type: file.type, data: imageData });
                             }
                             renderTracker();
                         }
@@ -1353,11 +1331,9 @@
                     if (target.closest('.stage-card') && state.userRole === 'admin') {
                         const stage = state.stages.find(s => s.id === target.closest('.stage-card').dataset.id);
                         if (!stage || stage.status !== 'In-Progress') return;
-
                         if (target.isContentEditable) {
                             createDataFlowAnimation(target);
                         }
-
                         if (target.classList.contains('stage-title')) {
                             stage.title = target.innerText;
                             sendDataToBackend({ type: 'stageTitleUpdate', payload: { id: stage.id, title: stage.title } });
@@ -1369,21 +1345,17 @@
                             sendDataToBackend({ type: 'stageUpdate', payload: { stageId: stage.id, subsectionTitle: subsectionTitle, content: target.innerHTML } });
                         }
                         if (target.tagName === 'H4' && target.isContentEditable) {
-                            // This part is complex as it requires changing a key in an object.
-                            // Simplified: update the local state and send to backend to handle the key change.
                             const detailIndex = Number(target.dataset.index);
                             const oldTitle = stage.subSectionTitles[detailIndex];
                             const newTitle = target.innerText;
                             if (oldTitle !== newTitle) {
-                                // This requires more complex backend logic to rename a column.
-                                // For now, we'll just log it.
                                 console.log(`Title changed from "${oldTitle}" to "${newTitle}". Backend support needed.`);
                             }
                         }
                     }
                 }, true);
 
-                // --- Drag and Drop --- //
+                // Drag and Drop
                 let draggedItemId = null;
                 appContainer.addEventListener('dragstart', e => { if (state.userRole !== 'admin' || !e.target.classList.contains('stage-card-inner')) return; draggedItemId = e.target.closest('.stage-card').dataset.id; e.dataTransfer.effectAllowed = 'move'; setTimeout(() => e.target.closest('.stage-card').classList.add('dragging'), 0); });
                 appContainer.addEventListener('dragend', e => { if (!draggedItemId) return; e.target.closest('.stage-card').classList.remove('dragging'); document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over')); draggedItemId = null; });
@@ -1393,7 +1365,6 @@
                     if (!draggedItemId) return;
                     const targetColumnEl = e.target.closest('.tracker-column');
                     if (!targetColumnEl) return;
-
                     const newStatus = targetColumnEl.id === 'completed-column' ? 'Completed' : 'In-Progress';
                     moveStage(draggedItemId, newStatus);
                 });
@@ -1410,45 +1381,34 @@
                            sendDataToBackend({ type: 'createSnapshot', payload: { adminEmail: email } });
                            setTimeout(() => window.location.reload(), 2000);
                         }
-                    }, true); // The 'true' indicates we need an input field
+                    }, true);
                 });
                 
                 // Tabbed view click handler
                 columnTabs.addEventListener('click', (e) => {
                     const tabButton = e.target.closest('.tab-btn');
                     if (!tabButton) return;
-
                     const targetColumnId = tabButton.dataset.target;
-                    
                     columnTabs.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
                     tabButton.classList.add('active');
-
                     projectTrackerColumns.querySelectorAll('.tracker-column').forEach(col => {
                         col.classList.toggle('hidden', col.id !== targetColumnId);
                     });
                 });
 
-                // --- NEW: Focus Mode Event Listeners --- //
+                // Focus Mode Event Listeners
                 appContainer.addEventListener('focusin', e => {
                     if (state.userRole !== 'admin' || !e.target.isContentEditable) return;
-
-                    // Remove focus from any other element first to handle tabbing
                     document.querySelectorAll('.in-focus').forEach(el => el.classList.remove('in-focus'));
-                    
                     const focusContainer = e.target.closest('.stage-card, .collapsible-section');
                     if (focusContainer) {
                         document.body.classList.add('focus-mode-active');
                         focusContainer.classList.add('in-focus');
                     }
                 });
-
                 appContainer.addEventListener('focusout', e => {
                     if (state.userRole !== 'admin' || !e.target.isContentEditable) return;
-                    
-                    // The focusout event fires before the next focusin event.
-                    // A small timeout ensures we don't remove the class if focus is just moving to another editable field.
                     setTimeout(() => {
-                        // Check if the new focused element is NOT an editable field within the app.
                         if (!document.activeElement || !appContainer.contains(document.activeElement) || !document.activeElement.isContentEditable) {
                             document.body.classList.remove('focus-mode-active');
                             const inFocusElement = document.querySelector('.in-focus');
@@ -1459,35 +1419,27 @@
                     }, 50);
                 });
 
-                // --- NEW: Progress Bar Event Listeners --- //
+                // Progress Bar Event Listeners
                 const progressBarContainer = document.getElementById('overall-progress-bar-container');
                 const progressTooltip = document.getElementById('progress-tooltip');
                 const progressBarHighlight = document.getElementById('overall-progress-bar-highlight');
-
                 progressBarContainer.addEventListener('mouseenter', () => {
                     if (state.stages.length === 0) return;
                     progressTooltip.classList.remove('hidden');
                     progressBarHighlight.classList.remove('hidden');
                 });
-
                 progressBarContainer.addEventListener('mouseleave', () => {
                     progressTooltip.classList.add('hidden');
                     progressBarHighlight.classList.add('hidden');
                 });
-
                 progressBarContainer.addEventListener('mousemove', e => {
                     if (state.stages.length === 0) return;
-
                     const rect = progressBarContainer.getBoundingClientRect();
                     const offsetX = e.clientX - rect.left;
                     const percentage = Math.min(100, Math.max(0, (offsetX / rect.width) * 100));
-
-                    // Update and position tooltip
                     progressTooltip.textContent = `${percentage.toFixed(0)}% Complete`;
                     progressTooltip.style.left = `${e.clientX}px`;
                     progressTooltip.style.top = `${e.clientY}px`;
-
-                    // Position highlight
                     progressBarHighlight.style.left = `${offsetX}px`;
                 });
             }
@@ -1504,19 +1456,18 @@
             function moveStage(stageId, newStatus) {
                 const stage = state.stages.find(s => s.id === stageId);
                 if (stage && stage.status !== newStatus) {
+                    const oldStatus = stage.status;
                     const stageCard = document.querySelector(`.stage-card[data-id="${stageId}"]`);
-
                     if (stageCard) {
                         stageCard.classList.add('flip-out');
                     }
-                    
                     setTimeout(() => {
                         stage.status = newStatus;
-
-                        if (newStatus === 'Completed' || newStatus === 'Obsolete') {
+                        if (newStatus === 'In-Progress' && (oldStatus === 'Completed' || oldStatus === 'Obsolete')) {
+                            sendDataToBackend({ type: 'stageRevert', payload: { id: stage.id } });
+                        } else if (newStatus === 'Completed' || newStatus === 'Obsolete') {
                             sendDataToBackend({ type: 'stageComplete', payload: { id: stage.id, status: newStatus } });
                         }
-                        
                         renderAll();
                         checkCompletion();
                     }, 400); 
@@ -1530,16 +1481,14 @@
             }
             
             function showConfirmation(text, callback, requireInput = false) { 
-                modalText.innerHTML = text; // Use innerHTML to allow for line breaks
+                modalText.innerHTML = text;
                 if (requireInput) {
                     modalText.innerHTML += '<br><br><input type="email" id="modal-input" placeholder="Enter your email..." style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border-color);">';
                 }
-
                 confirmationCallback = () => {
                     const input = document.getElementById('modal-input');
                     callback(input ? input.value : true);
                 };
-                
                 modalConfirmBtn.classList.remove('hidden');
                 modalCancelBtn.classList.remove('hidden');
                 modalOkBtn.classList.add('hidden');
@@ -1560,7 +1509,6 @@
                 if (isNaN(currentDate.getTime())) currentDate = new Date();
                 const datepicker = document.createElement('div');
                 datepicker.className = 'datepicker';
-                
                 function renderCalendar(date) {
                     const year = date.getFullYear();
                     const month = date.getMonth();
@@ -1568,7 +1516,6 @@
                     const dayNames = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
                     const firstDay = new Date(year, month, 1).getDay();
                     const daysInMonth = new Date(year, month + 1, 0).getDate();
-                    
                     let gridHTML = `<div class="datepicker-header"><button class="prev-month">&lt;</button><span>${monthNames[month]} ${year}</span><button class="next-month">&gt;</button></div><div class="datepicker-grid">`;
                     dayNames.forEach(day => gridHTML += `<div class="datepicker-day-name">${day}</div>`);
                     for (let i = 0; i < firstDay; i++) gridHTML += `<div class="empty"></div>`;
@@ -1580,22 +1527,18 @@
                     gridHTML += `</div>`;
                     datepicker.innerHTML = gridHTML;
                 }
-
                 datepicker.addEventListener('click', e => {
                     e.stopPropagation();
                     if (e.target.classList.contains('datepicker-day') && !e.target.classList.contains('empty')) {
                         const selectedDate = e.target.dataset.date;
                         targetInput.value = selectedDate;
-                        
                         let fieldName = targetInput.id === 'deadline-tentative' ? 'Deadline (Tentative)' : 'Deadline (Actual)';
                         sendDataToBackend({ type: 'aboutUpdate', payload: { field: fieldName, content: selectedDate }});
-
                         datepicker.remove();
                     }
                     if (e.target.classList.contains('prev-month')) { currentDate.setMonth(currentDate.getMonth() - 1); renderCalendar(currentDate); }
                     if (e.target.classList.contains('next-month')) { currentDate.setMonth(currentDate.getMonth() + 1); renderCalendar(currentDate); }
                 });
-
                 targetInput.parentNode.appendChild(datepicker);
                 renderCalendar(currentDate);
                 document.addEventListener('click', (e) => { if (!datepicker.contains(e.target) && e.target !== targetInput) datepicker.remove(); }, { once: true });
@@ -1618,47 +1561,39 @@
 
             function addSwipeListeners(card) {
                 if (state.userRole !== 'admin') return;
-
                 const cardInner = card.querySelector('.stage-card-inner');
                 let startX, currentX, deltaX = 0, isSwiping = false;
                 const swipeThreshold = 50;
-                const maxSwipe = 80; // max distance for one side
-
+                const maxSwipe = 80;
                 function handleTouchStart(e) {
                     if (e.target.closest('.editable, .primary-button, input, textarea')) return;
                     startX = e.touches[0].clientX;
                     isSwiping = true;
                     cardInner.style.transition = 'none';
                 }
-
                 function handleTouchMove(e) {
                     if (!isSwiping) return;
                     currentX = e.touches[0].clientX;
                     deltaX = currentX - startX;
-                    
                     const stage = state.stages.find(s => s.id === card.dataset.id);
                     if (stage.status !== 'In-Progress') {
                         deltaX = Math.min(0, deltaX);
                     }
-
                     const translate = Math.max(-maxSwipe, Math.min(maxSwipe * 2, deltaX));
                     cardInner.style.transform = `translateX(${translate}px)`;
                 }
-
                 function handleTouchEnd() {
                     if (!isSwiping) return;
                     isSwiping = false;
                     cardInner.style.transition = 'transform 0.3s ease';
-
-                    if (deltaX < -swipeThreshold) { // Swiped left
+                    if (deltaX < -swipeThreshold) {
                         cardInner.style.transform = `translateX(${-maxSwipe * 2}px)`;
-                    } else if (deltaX > swipeThreshold) { // Swiped right
+                    } else if (deltaX > swipeThreshold) {
                         cardInner.style.transform = `translateX(${maxSwipe}px)`;
-                    } else { // Didn't pass threshold, snap back
+                    } else {
                         cardInner.style.transform = 'translateX(0px)';
                     }
                 }
-                
                 card.addEventListener('touchstart', handleTouchStart, { passive: true });
                 card.addEventListener('touchmove', handleTouchMove, { passive: true });
                 card.addEventListener('touchend', handleTouchEnd, { passive: true });
@@ -1666,27 +1601,19 @@
             
             // --- ANIMATION & UI FUNCTIONS --- //
             
-            /* --- NEW: Data Flow Animation Function --- */
             function createDataFlowAnimation(element) {
                 if (!element || state.userRole !== 'admin') return;
-
                 const rect = element.getBoundingClientRect();
                 const particleCount = 5;
-
                 for (let i = 0; i < particleCount; i++) {
                     const particle = document.createElement('div');
                     particle.className = 'data-particle';
-
-                    // Start from a random point within the element
                     const startX = rect.left + Math.random() * rect.width;
                     const startY = rect.top + Math.random() * rect.height;
-
                     particle.style.left = `${startX}px`;
                     particle.style.top = `${startY}px`;
                     particle.style.animationDelay = `${Math.random() * 0.2}s`;
-                    
                     document.body.appendChild(particle);
-
                     particle.addEventListener('animationend', () => {
                         particle.remove();
                     });
@@ -1700,28 +1627,23 @@
                     spread: 70,
                     origin: { y: 0.6 }
                 });
-                
                 showMessage('🎉 Congratulations! All project stages have been completed! 🎉');
             }
             
             function setupMobileObservers() {
                 const mediaQuery = window.matchMedia('(max-width: 640px)');
-
                 function handleScreenChange(e) {
                     const isMobile = e.matches;
                     columnTabs.classList.toggle('hidden', !isMobile);
-                    
                     if (isMobile) {
                         columnTabs.querySelector('.tab-btn').click();
                     } else {
                         projectTrackerColumns.querySelectorAll('.tracker-column').forEach(col => col.classList.remove('hidden'));
                     }
-
                     fabAddStage.classList.toggle('hidden', !isMobile || state.userRole !== 'admin');
                 }
-
                 mediaQuery.addEventListener('change', handleScreenChange);
-                handleScreenChange(mediaQuery); // Initial check
+                handleScreenChange(mediaQuery);
             }
 
             let blueprintAnimationId;
@@ -1730,30 +1652,24 @@
                 const ctx = canvas.getContext('2d');
                 const loadingText = document.getElementById('loading-text');
                 const loadingMessage = document.getElementById('loading-message');
-                
                 loadingText.textContent = role === 'admin' ? 'Assembling Control Panel...' : 'Unrolling Project Blueprint...';
                 loadingMessage.textContent = 'Fetching latest data...';
-
                 let width, height;
                 let progress = 0;
                 let startTime = null;
-                const animationDuration = 2000; // 2 seconds
-
+                const animationDuration = 2000;
                 function setup() {
                     width = canvas.width = window.innerWidth;
                     height = canvas.height = window.innerHeight;
                 }
-
                 function draw(timestamp) {
                     if (!startTime) startTime = timestamp;
                     const elapsed = timestamp - startTime;
                     progress = Math.min(elapsed / animationDuration, 1);
-
                     ctx.clearRect(0, 0, width, height);
                     ctx.strokeStyle = 'rgba(100, 200, 255, 0.5)';
                     ctx.fillStyle = 'rgba(100, 200, 255, 0.7)';
                     ctx.lineWidth = 1;
-                    
                     ctx.globalAlpha = progress * 0.5;
                     for (let i = 0; i < width; i += 50) { 
                         ctx.beginPath();
@@ -1768,22 +1684,18 @@
                         ctx.stroke();
                     }
                     ctx.globalAlpha = 1;
-
                     const rectProgress = Math.min(progress / 0.5, 1);
                     if(rectProgress > 0) {
                         ctx.beginPath();
                         ctx.rect(width * 0.2, height * 0.2, width * 0.6 * rectProgress, height * 0.6);
                         ctx.stroke();
                     }
-                    
                     document.getElementById('loading-progress-bar').style.width = `${progress * 100}%`;
                     if (progress >= 0.5) { loadingMessage.textContent = 'Rendering components...'; }
-                    
                     if (progress < 1) {
                         blueprintAnimationId = requestAnimationFrame(draw);
                     }
                 }
-                
                 window.addEventListener('resize', setup);
                 setup();
                 blueprintAnimationId = requestAnimationFrame(draw);
@@ -1793,110 +1705,72 @@
                 cancelAnimationFrame(blueprintAnimationId);
             }
 
-            /**
-             * MODIFIED: This function now creates a more lively starry night with prominent
-             * twinkling stars and occasional shooting stars.
-             */
             function initConstellation() {
                 document.body.classList.add('constellation-active');
-
                 const canvas = document.getElementById('constellation-bg');
                 const ctx = canvas.getContext('2d');
                 if (!canvas || !ctx) return;
-
                 const isAdmin = state.userRole === 'admin';
-                // Admin gets pinkish stars, visitor gets whiter stars
                 const starColor = isAdmin ? '249, 168, 212' : '255, 255, 255';
-                
                 let stars = [];
-                let shootingStars = []; // Array for shooting stars
+                let shootingStars = [];
                 let animationFrameId;
-
                 function setup() {
                     canvas.width = window.innerWidth;
                     canvas.height = window.innerHeight;
                     stars = [];
-                    shootingStars = []; // Reset on resize
-
-                    // More stars for a denser field
+                    shootingStars = [];
                     const numStars = window.innerWidth / 10;
                     for (let i = 0; i < numStars; i++) {
                         stars.push({
                             x: Math.random() * canvas.width,
                             y: Math.random() * canvas.height,
-                            // Stars are slightly larger and more varied in size
                             radius: Math.random() * 2 + 0.5,
-                            // Stars are more prominent (less transparent)
                             alpha: Math.random() * 0.7 + 0.3,
-                            // A slightly faster twinkle
                             dAlpha: (Math.random() * 0.02) - 0.01
                         });
                     }
                 }
-
                 function createShootingStar() {
                     const x = Math.random() * canvas.width;
-                    const y = 0; // Start at the top
+                    const y = 0;
                     shootingStars.push({
-                        x: x,
-                        y: y,
+                        x: x, y: y,
                         len: Math.random() * 80 + 10,
                         speed: Math.random() * 10 + 5,
                         alpha: 1,
-                        // Angle between 45 and 135 degrees for downward travel
                         angle: Math.PI / 4 + (Math.random() * Math.PI / 2)
                     });
                 }
-
                 function draw() {
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-                    // --- 1. Draw twinkling background stars ---
                     stars.forEach(star => {
-                        // Twinkle effect
                         star.alpha += star.dAlpha;
                         if (star.alpha <= 0.3 || star.alpha >= 1) {
                             star.dAlpha *= -1;
                         }
-
-                        // Draw star
                         ctx.beginPath();
                         ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
                         ctx.fillStyle = `rgba(${starColor}, ${star.alpha})`;
                         ctx.fill();
                     });
-
-
-                    // --- 2. Create and draw shooting stars ---
-
-                    // Randomly create a new shooting star
                     if (Math.random() < 0.015 && shootingStars.length < 5) {
                         createShootingStar();
                     }
-
-                    // Use a reverse loop for safe removal of elements
                     for (let i = shootingStars.length - 1; i >= 0; i--) {
                         const ss = shootingStars[i];
-
-                        // Update position
                         ss.x += ss.speed * Math.cos(ss.angle);
                         ss.y += ss.speed * Math.sin(ss.angle);
-                        ss.alpha *= 0.99; // Fade out over time
-
-                        // Remove if off-screen or invisible
+                        ss.alpha *= 0.99;
                         if (ss.y > canvas.height || ss.x > canvas.width || ss.alpha < 0.01) {
                             shootingStars.splice(i, 1);
-                            continue; // Skip to next star
+                            continue;
                         }
-                        
-                        // Draw shooting star tail
                         const tailX = ss.x - ss.len * Math.cos(ss.angle);
                         const tailY = ss.y - ss.len * Math.sin(ss.angle);
-
                         const gradient = ctx.createLinearGradient(ss.x, ss.y, tailX, tailY);
                         gradient.addColorStop(0, `rgba(${starColor}, ${ss.alpha})`);
                         gradient.addColorStop(1, `rgba(${starColor}, 0)`);
-                        
                         ctx.beginPath();
                         ctx.moveTo(tailX, tailY);
                         ctx.lineTo(ss.x, ss.y);
@@ -1904,22 +1778,16 @@
                         ctx.lineWidth = 2;
                         ctx.stroke();
                     }
-
-
                     animationFrameId = requestAnimationFrame(draw);
                 }
-
                 setup();
                 draw();
-
-                // Re-setup on window resize
                 window.addEventListener('resize', () => {
                     cancelAnimationFrame(animationFrameId);
                     setup();
                     draw();
                 });
             }
-
 
             // --- INITIALIZATION --- //
             initializeLocalState();
