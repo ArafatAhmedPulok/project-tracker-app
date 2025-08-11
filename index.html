@@ -1215,7 +1215,7 @@
                 document.getElementById('add-stage-btn').addEventListener('click', addStageAction);
                 fabAddStage.addEventListener('click', addStageAction);
                 
-                // --- Visitor Comments Handler --- //
+// --- Visitor Comments Handler --- //
                 document.getElementById('submit-comment-btn').addEventListener('click', () => {
                     const nameInput = document.getElementById('visitor-name-input');
                     const commentInput = document.getElementById('comment-input');
@@ -1223,13 +1223,25 @@
                     const text = commentInput.value.trim();
 
                     if (text && name) {
+                        const newComment = { 
+                            id: generateUniqueId('cmt'), 
+                            name: name, 
+                            text: text, 
+                            timestamp: Date.now() 
+                        };
+
+                        // FIX: Optimistically add the new comment to the local state
+                        // This makes the comment appear instantly for the user who posted it.
+                        state.comments.push(newComment);
+                        
+                        // Re-render the comments section immediately
+                        renderComments();
+
+                        // Send the data to the backend to be saved permanently
                         const payload = { name: name, comment: text };
                         sendDataToBackend({ type: 'visitorComment', payload: payload });
-                        const newComment = { id: generateUniqueId('cmt'), name, text, timestamp: Date.now() };
-                        state.comments.push(newComment);
-                        const newCommentEl = createCommentElement(newComment);
-                        commentsContainer.appendChild(newCommentEl);
-                        commentsContainer.scrollTop = commentsContainer.scrollHeight;
+                        
+                        // Animate the form flying out
                         const commentForm = document.getElementById('comment-input-area');
                         commentForm.classList.add('comment-fly-out');
                         commentForm.addEventListener('animationend', () => {
@@ -1237,6 +1249,7 @@
                             commentForm.style.transform = '';
                             commentForm.style.opacity = '';
                         }, { once: true });
+                        
                         nameInput.value = '';
                         commentInput.value = '';
                     } else {
