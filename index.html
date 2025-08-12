@@ -766,21 +766,19 @@
             const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxaqa0Cbo9b7hMZzb5-Q2sQYhnSGGPG3bswKNfXZ4tI4Jn0_Mh58qaxUAJU6mMu6-pF/exec';
 
             async function loadAppData() {
-                // Layer 1: Browser Cache (Session Storage)
                 const cached = sessionStorage.getItem('appData');
                 if (cached) {
                     const { timestamp, data } = JSON.parse(cached);
-                    if (Date.now() - timestamp < 60000) { // 60 second cache
+                    if (Date.now() - timestamp < 60000) {
                         console.log("Loading data from BROWSER cache.");
                         return data;
                     }
                 }
 
-                // Layer 2 & 3: Google Script Cache & Google Sheet
                 try {
                     console.log("Fetching data from backend...");
                     const response = await fetch(WEB_APP_URL);
-                    if (!response.ok) throw new Error('Network response was not ok');
+                    if (!response.ok) throw new Error(`Network response was not ok: ${response.statusText}`);
                     const data = await response.json();
                     
                     sessionStorage.setItem('appData', JSON.stringify({ timestamp: Date.now(), data: data }));
@@ -803,17 +801,27 @@
 
                 fetch(WEB_APP_URL, {
                     method: 'POST',
-                    mode: 'no-cors',
+                    mode: 'cors', // Use CORS to get a real response
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                     body: JSON.stringify(data),
                 })
-                .then(() => {
-                    console.log('Data sent to backend successfully.');
-                    saveIndicator.textContent = 'Update Saved ✔';
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Network error: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.status === 'success') {
+                        saveIndicator.textContent = 'Update Saved ✔';
+                    } else {
+                        throw new Error(data.message || 'Backend returned an error.');
+                    }
                 })
                 .catch(error => {
                     console.error('Error sending data to backend:', error);
                     saveIndicator.textContent = 'Error Saving!';
+                    showMessage(`Save failed: ${error.message}`);
                 })
                 .finally(() => {
                     saveIndicatorTimeout = setTimeout(() => {
@@ -1050,7 +1058,6 @@
                 const commentEl = document.createElement('div');
                 commentEl.className = 'comment';
                 commentEl.dataset.id = comment.id;
-
                 commentEl.innerHTML = `
                     <div class="comment-content"><p>${comment.text}</p></div>
                     <div class="comment-meta">
@@ -1063,7 +1070,6 @@
             function renderTimeline() {
                 timelineVisualizer.innerHTML = '';
                 if (state.stages.length === 0) return;
-
                 state.stages.forEach((stage, index) => {
                     const nodeEl = document.createElement('div');
                     nodeEl.className = `timeline-node node-status-${stage.status.replace('-', '')}`;
@@ -1073,7 +1079,6 @@
                         <div class="node-title">${stage.title}</div>
                     `;
                     timelineVisualizer.appendChild(nodeEl);
-
                     if (index < state.stages.length - 1) {
                         const connectorEl = document.createElement('div');
                         connectorEl.className = 'timeline-connector';
@@ -1138,7 +1143,6 @@
                 // --- 'About' Section Handlers --- //
                 document.getElementById('main-title').addEventListener('blur', e => {
                     if (state.userRole !== 'admin') return;
-                    // Optimistic update
                     state.about['Project Title'] = e.target.innerHTML;
                     createDataFlowAnimation(e.target);
                     sendDataToBackend({ type: 'aboutUpdate', payload: { field: 'Project Title', content: e.target.innerHTML }});
@@ -1146,7 +1150,6 @@
 
                 document.getElementById('executive-summary').addEventListener('blur', e => {
                     if (state.userRole !== 'admin') return;
-                    // Optimistic update
                     state.about['Executive Summary'] = e.target.innerHTML;
                     createDataFlowAnimation(e.target);
                     sendDataToBackend({ type: 'aboutUpdate', payload: { field: 'Executive Summary', content: e.target.innerHTML }});
@@ -1156,7 +1159,6 @@
                     document.getElementById(id).addEventListener('blur', e => {
                         if (state.userRole !== 'admin') return;
                         const fieldName = id === 'leader-name' ? 'Leader Name' : 'Approver Name';
-                        // Optimistic update
                         state.about[fieldName] = e.target.value;
                         createDataFlowAnimation(e.target.parentElement);
                         sendDataToBackend({ type: 'aboutUpdate', payload: { field: fieldName, content: e.target.value } });
@@ -1165,7 +1167,6 @@
                 
                 async function handlePhotoUpload(file, section, fieldName) {
                     const imageData = await fileToBase64(file);
-                    // Optimistic UI Update
                     if (fieldName === 'Title Image') {
                         document.getElementById('title-image-preview').src = imageData;
                     } else if (fieldName === 'Leader Photo') {
@@ -1215,13 +1216,12 @@
                 document.getElementById('add-stage-btn').addEventListener('click', addStageAction);
                 fabAddStage.addEventListener('click', addStageAction);
                 
-// --- Visitor Comments Handler --- //
+                // --- Visitor Comments Handler --- //
                 document.getElementById('submit-comment-btn').addEventListener('click', () => {
                     const nameInput = document.getElementById('visitor-name-input');
                     const commentInput = document.getElementById('comment-input');
                     const name = nameInput.value.trim();
                     const text = commentInput.value.trim();
-
                     if (text && name) {
                         const newComment = { 
                             id: generateUniqueId('cmt'), 
@@ -1229,19 +1229,10 @@
                             text: text, 
                             timestamp: Date.now() 
                         };
-
-                        // FIX: Optimistically add the new comment to the local state
-                        // This makes the comment appear instantly for the user who posted it.
                         state.comments.push(newComment);
-                        
-                        // Re-render the comments section immediately
                         renderComments();
-
-                        // Send the data to the backend to be saved permanently
                         const payload = { name: name, comment: text };
                         sendDataToBackend({ type: 'visitorComment', payload: payload });
-                        
-                        // Animate the form flying out
                         const commentForm = document.getElementById('comment-input-area');
                         commentForm.classList.add('comment-fly-out');
                         commentForm.addEventListener('animationend', () => {
@@ -1249,7 +1240,6 @@
                             commentForm.style.transform = '';
                             commentForm.style.opacity = '';
                         }, { once: true });
-                        
                         nameInput.value = '';
                         commentInput.value = '';
                     } else {
@@ -1533,9 +1523,11 @@
                     dayNames.forEach(day => gridHTML += `<div class="datepicker-day-name">${day}</div>`);
                     for (let i = 0; i < firstDay; i++) gridHTML += `<div class="empty"></div>`;
                     for (let i = 1; i <= daysInMonth; i++) {
-                        const dayDate = new Date(year, month, i);
-                        const isSelected = targetInput.value && new Date(targetInput.value).toDateString() === dayDate.toDateString();
-                        gridHTML += `<div class="datepicker-day ${isSelected ? 'selected' : ''}" data-date="${dayDate.toISOString().split('T')[0]}">${i}</div>`;
+                        const dayString = String(i).padStart(2, '0');
+                        const monthString = String(month + 1).padStart(2, '0');
+                        const dateString = `${year}-${monthString}-${dayString}`;
+                        const isSelected = targetInput.value === dateString;
+                        gridHTML += `<div class="datepicker-day ${isSelected ? 'selected' : ''}" data-date="${dateString}">${i}</div>`;
                     }
                     gridHTML += `</div>`;
                     datepicker.innerHTML = gridHTML;
@@ -1808,4 +1800,4 @@
         });
     </script>
 </body>
-</html>
+</html>]
