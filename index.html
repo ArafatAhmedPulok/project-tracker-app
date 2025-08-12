@@ -763,30 +763,23 @@
             let confirmationCallback = null;
 
             // --- BACKEND COMMUNICATION --- //
-            const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxaqa0Cbo9b7hMZzb5-Q2sQYhnSGGPG3bswKNfXZ4tI4Jn0_Mh58qaxUAJU6mMu6-pF/exec';
+            const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyb55a_b_c0Y2a2r-9qXl6R3t2d5b6kYn7hZz9jX_kLp4nFv3d2b1a0C/exec';
 
             async function loadAppData() {
-                const cached = sessionStorage.getItem('appData');
-                if (cached) {
-                    const { timestamp, data } = JSON.parse(cached);
-                    if (Date.now() - timestamp < 60000) {
-                        console.log("Loading data from BROWSER cache.");
-                        return data;
-                    }
-                }
-
+                // Forcing a fresh load every time by ignoring session cache
                 try {
-                    console.log("Fetching data from backend...");
+                    console.log("Fetching fresh data from backend...");
                     const response = await fetch(WEB_APP_URL);
                     if (!response.ok) throw new Error(`Network response was not ok: ${response.statusText}`);
                     const data = await response.json();
                     
+                    // We can still cache it for performance during a session, but not for reloads
                     sessionStorage.setItem('appData', JSON.stringify({ timestamp: Date.now(), data: data }));
                     return data;
 
                 } catch (error) {
                     console.error('Failed to load app data:', error);
-                    showMessage('Could not load saved data. Starting with a default view.');
+                    showMessage('Could not load saved data. Please try again.');
                     return null;
                 }
             }
@@ -796,12 +789,13 @@
                 clearTimeout(saveIndicatorTimeout);
                 saveIndicator.textContent = 'Saving...';
                 saveIndicator.classList.add('show');
-
+                
+                // CRITICAL: Clear the session cache immediately on save
                 sessionStorage.removeItem('appData');
 
                 fetch(WEB_APP_URL, {
                     method: 'POST',
-                    mode: 'cors', // Use CORS to get a real response
+                    mode: 'cors',
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                     body: JSON.stringify(data),
                 })
@@ -937,8 +931,8 @@
                 document.getElementById('main-title').innerHTML = state.about['Project Title'] || 'WFS Visa Funnel Revamp (Fountain)';
                 document.getElementById('title-image-preview').src = state.about['Title Image'] || 'https://placehold.co/800x300/e5e7eb/4b5563?text=Title+Image';
                 document.getElementById('executive-summary').innerHTML = state.about['Executive Summary'] || 'Enter executive summary here...';
-                document.getElementById('deadline-tentative').value = state.about['Deadline (Tentative)'] || '';
-                document.getElementById('deadline-actual').value = state.about['Deadline (Actual)'] || '';
+                document.getElementById('deadline-tentative').value = state.about['Deadline (Tentative)'] ? state.about['Deadline (Tentative)'].split('T')[0] : '';
+                document.getElementById('deadline-actual').value = state.about['Deadline (Actual)'] ? state.about['Deadline (Actual)'].split('T')[0] : '';
                 document.getElementById('leader-name').value = state.about['Leader Name'] || '';
                 document.getElementById('leader-photo-preview').src = state.about['Leader Photo'] || 'https://placehold.co/120x120/e5e7eb/4b5563?text=Photo';
                 document.getElementById('approver-name').value = state.about['Approver Name'] || '';
@@ -1800,4 +1794,4 @@
         });
     </script>
 </body>
-</html>]
+</html>
